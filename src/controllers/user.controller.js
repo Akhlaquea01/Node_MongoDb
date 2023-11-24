@@ -15,7 +15,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // check for duplicate
-    const existingUser = User.findOne({
+    const existingUser = await User.findOne({
         $or: [{ userName }, { email }]
     });
     if (existingUser) {
@@ -23,7 +23,10 @@ const registerUser = asyncHandler(async (req, res) => {
     }
     // check for images,avtar
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    let coverImageLocalPath = '';
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length) {
+        coverImageLocalPath = req.files?.coverImage[0]?.path;
+    }
 
     if (!avatarLocalPath) {
         throw new ApiError(409, "Avatar required");
@@ -44,7 +47,7 @@ const registerUser = asyncHandler(async (req, res) => {
         coverImage: coverImage?.url || "",
         email,
         password,
-        userName: userName.toLowercase()
+        userName: userName.toLowerCase()
     });
     // remove password and token field from response
 
