@@ -20,11 +20,10 @@ const videoSchema = new Schema(
             required: true
         },
         duration: {
-            type: Number,//cloudinary data
-            required: false
+            type: Number,
+            required: true
         },
-        views:
-        {
+        views: {
             type: Number,
             default: 0
         },
@@ -36,10 +35,13 @@ const videoSchema = new Schema(
             type: Schema.Types.ObjectId,
             ref: "User"
         }
+
     },
     {
         timestamps: true
     }
 );
+
 videoSchema.plugin(mongooseAggregatePaginate);
+
 export const Video = mongoose.model("Video", videoSchema);
