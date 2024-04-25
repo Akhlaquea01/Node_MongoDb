@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -304,16 +304,27 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                avatar: avatar.url
-            }
-        },
-        { new: true }
-    ).select("-password");
+    const user = await User.findById(req.user?._id).select("-password");
+    // const user = await User.findByIdAndUpdate(
+    //     req.user?._id,
+    //     {
+    //         $set: {
+    //             avatar: avatar.url
+    //         }
+    //     },
+    //     { new: true }
+    // ).select("-password");
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
 
+    // Delete old cover image if it exists
+    if (user.avatar) {
+        await deleteFromCloudinaryByUrl(user.avatar);
+    }
+    // Update user with new cover image URL
+    user.avatar = avatar.url;
+    await user.save();
     return res
         .status(200)
         .json(
@@ -328,32 +339,48 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Cover image file is missing");
     }
 
-    //TODO: delete old image - assignment
+    const user = await User.findById(req.user?._id).select("-password");
 
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
 
+    // Delete old cover image if it exists
+    if (user.coverImage) {
+        await deleteFromCloudinaryByUrl(user.coverImage);
+    }
+
+    // Upload new cover image
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
     if (!coverImage.url) {
-        throw new ApiError(400, "Error while uploading on avatar");
-
+        throw new ApiError(400, "Error while uploading cover image");
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                coverImage: coverImage.url
-            }
-        },
-        { new: true }
-    ).select("-password");
+    // Update user with new cover image URL
+    user.coverImage = coverImage.url;
+    await user.save();
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, user, "Cover image updated successfully")
-        );
+    // Send response
+    return res.status(200).json(
+        new ApiResponse(200, user, "Cover image updated successfully")
+    );
 });
+
+const getImagesFromCloudinary = asyncHandler(async (req, res) => {
+    try {
+        const images = await getAllImagesFromCloudinary();
+
+        if (images) {
+            return res.status(200).json(images);
+        } else {
+            return res.status(500).json({ message: 'Unable to fetch images from Cloudinary' });
+        }
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
@@ -494,5 +521,6 @@ export {
     updateUserAvatar,
     updateUserCoverImage,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
+    getImagesFromCloudinary
 };
