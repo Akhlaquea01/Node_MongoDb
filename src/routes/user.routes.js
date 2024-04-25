@@ -11,7 +11,7 @@ import {
     getUserChannelProfile,
     getWatchHistory,
     updateAccountDetails,
-    getImagesFromCloudinary
+    getItemsFromCloudinary
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -40,7 +40,7 @@ router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
-router.route("/all-images").get(verifyJWT, getImagesFromCloudinary);
+router.route("/all-items").post(verifyJWT, getItemsFromCloudinary);
 router.route("/update-account").patch(verifyJWT, updateAccountDetails);
 
 router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar);

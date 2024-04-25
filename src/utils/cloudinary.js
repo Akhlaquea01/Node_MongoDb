@@ -9,26 +9,27 @@ cloudinary.config({
 });
 
 // Function to upload a file to Cloudinary
-const uploadOnCloudinary = async (localFilePath) => {
+const uploadOnCloudinary = async (localFilePath, folder = '') => {
     try {
         if (!localFilePath) return null;
         const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto"
+            resource_type: "auto",
+            folder: folder // Include folder parameter in the upload options
         });
         fs.unlinkSync(localFilePath); // Delete the locally saved temporary file
         return response;
     } catch (error) {
-        fs.unlinkSync(localFilePath); // Remove the locally saved temporary file if the upload operation fails
+        fs.unlinkSync(localFilePath);
         return null;
     }
 };
 
 // Function to delete a file from Cloudinary by URL
-const deleteFromCloudinaryByUrl = async (fileUrl) => {
+const deleteFromCloudinaryByUrl = async (fileUrl, folder = '') => {
     try {
         const publicId = fileUrl.split('/').slice(-1)[0].split('.')[0]; // Extract public ID from URL
-        const response = await cloudinary.uploader.destroy(publicId); // Delete the file from Cloudinary
-        return response.result === 'ok'; // Return true if deletion is successful
+        const response = await cloudinary.uploader.destroy(publicId, { folder }); // Delete the file from Cloudinary
+        return response.result === 'ok';
     } catch (error) {
         return false;
     }
@@ -47,4 +48,39 @@ const getAllImagesFromCloudinary = async () => {
     }
 };
 
-export { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary };
+// Function to get all items from Cloudinary with options for folder name, directory path, and resource type
+const getAllItemsFromCloudinary = async (options = {}) => {
+    try {
+        let expression = '';
+        if (options.folderName) {
+            expression += `folder=${options.folderName}`;
+        }
+        if (options.resourceType && !expression.includes('resource_type')) {
+            expression += (expression ? ' AND ' : '') + `resource_type=${options.resourceType}`;
+        }
+
+        // If neither folderName nor resourceType is provided, default to 'image' resource_type
+        if (!expression.includes('folder=') && !expression.includes('resource_type')) {
+            expression = 'resource_type:image';
+        }
+
+        const response = await cloudinary.search
+            .expression(expression)
+            .sort_by('public_id', 'desc')
+            .execute(); // Search for items based on the expression
+
+        let items = response.resources.map(item => item); // Get array of item
+
+        // If directoryPath is provided, append it to the item URLs
+        if (options.directoryPath) {
+            items = items.map(item => options.directoryPath + '/' + item.split('/').pop());
+        }
+
+        return items; // Return array of item URLs
+    } catch (error) {
+        return null;
+    }
+};
+
+
+export { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary, getAllItemsFromCloudinary };

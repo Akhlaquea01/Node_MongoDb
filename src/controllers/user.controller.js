@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary, getAllItemsFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -295,9 +295,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is missing");
     }
 
-    //TODO: delete old image - assignment
-
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    const avatar = await uploadOnCloudinary(avatarLocalPath,'avatar');
 
     if (!avatar.url) {
         throw new ApiError(400, "Error while uploading on avatar");
@@ -320,7 +318,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     // Delete old cover image if it exists
     if (user.avatar) {
-        await deleteFromCloudinaryByUrl(user.avatar);
+        await deleteFromCloudinaryByUrl(user.avatar,'avatar');
     }
     // Update user with new cover image URL
     user.avatar = avatar.url;
@@ -347,11 +345,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     // Delete old cover image if it exists
     if (user.coverImage) {
-        await deleteFromCloudinaryByUrl(user.coverImage);
+        await deleteFromCloudinaryByUrl(user.coverImage,'coverImage');
     }
 
     // Upload new cover image
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath,'coverImage');
 
     if (!coverImage.url) {
         throw new ApiError(400, "Error while uploading cover image");
@@ -367,12 +365,21 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     );
 });
 
-const getImagesFromCloudinary = asyncHandler(async (req, res) => {
+const getItemsFromCloudinary = asyncHandler(async (req, res) => {
     try {
-        const images = await getAllImagesFromCloudinary();
 
-        if (images) {
-            return res.status(200).json(images);
+        const options = {
+            folderName: req.body?.folderName??'', // Specify the folder name from which you want to fetch items
+            resourceType: req.body?.resourceType??'image', // Specify the resource type
+            directoryPath: req.body?.directoryPath??'' // Specify the directory path where the items will be stored
+        };
+
+        // Call the getAllItemsFromCloudinary function with the options
+        const item = await getAllItemsFromCloudinary(options);
+        // const item = await getAllImagesFromCloudinary();
+
+        if (item) {
+            return res.status(200).json(item);
         } else {
             return res.status(500).json({ message: 'Unable to fetch images from Cloudinary' });
         }
@@ -522,5 +529,5 @@ export {
     updateUserCoverImage,
     getUserChannelProfile,
     getWatchHistory,
-    getImagesFromCloudinary
+    getItemsFromCloudinary
 };
