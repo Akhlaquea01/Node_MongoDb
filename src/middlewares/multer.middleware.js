@@ -27,13 +27,13 @@ export const upload = (options = {}) => {
 
 const getDefaultLimits = () => {
   return {
-    fileSize: 1024 * 1024 // 1 MB limit for each file
+    fileSize: 1024 * 1024 *5// 1 MB limit for each file
   };
 };
 
 const defaultFileFilter = (req, file, cb) => {
   // Accept only certain file types
-  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png' || file.mimetype === 'video/mp4') {
     cb(null, true);
   } else {
     // Reject a file

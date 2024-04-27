@@ -12,12 +12,18 @@ import {upload} from "../middlewares/multer.middleware.js"
 
 const router = Router();
 router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
-
+const options = {
+    // destination: "./public/uploaded_files",
+    // fileFilter: customFileFilter,
+    limits: {
+        fileSize: 1024 * 1024 * 5 // 1/2 MB limit for each file
+    }
+};
 router
     .route("/")
     .get(getAllVideos)
     .post(
-        upload().fields([
+        upload(options).fields([
             {
                 name: "videoFile",
                 maxCount: 1,
