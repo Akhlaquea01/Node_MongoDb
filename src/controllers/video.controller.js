@@ -1,10 +1,12 @@
-import mongoose, { isValidObjectId } from "mongoose";
+import mongoose from "mongoose";
+import fs from "fs";
+import mkdirp from 'mkdirp'
 import { Video } from "../models/video.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary, deleteFromCloudinaryByUrl } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinaryByUrl, downloadFile } from "../utils/cloudinary.js";
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -125,7 +127,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     console.log(req.user?._id.toString());
 
     if (!userVideo || ((!userVideo.isPublished) && (!userVideo.owner === req.user._id))) {
-        throw new apiError(400, "video ur seacrching for doesnot exist");
+        throw new ApiError(400, "video ur seacrching for doesnot exist");
     }
 
 
@@ -156,7 +158,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     const myVideo = await Video.findById(videoId);
 
     if (!myVideo || !(myVideo.owner.toString() === req.user._id.toString())) {
-        throw new apiError(400, "Cannot find the video");
+        throw new ApiError(400, "Cannot find the video");
     }
 
     const updatedthumbnail = await uploadOnCloudinary(thumbnailUrl);
@@ -187,11 +189,91 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     //TODO: delete video
+
+    const myVideo = await Video.findById(videoId);
+
+    if (!myVideo || !(myVideo.owner.toString() === req.user._id.toString())) {
+        throw new ApiError(400, "Cannot find the video");
+    }
+
+    await deleteFromCloudinaryByUrl(myVideo.videoFile);
+    await Video.findByIdAndDelete(videoId);
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            "Deleted successfully"
+        )
+    );
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+
+    if (!videoId) {
+        throw new ApiError(400, "id not accessable");
+    }
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        throw new ApiError(400, "Video doesnot existed");
+    }
+
+
+    if (!video.owner.toString() == req.user?._id) {
+        throw new ApiError(400, "Not allowed to toggle");
+    }
+
+    video.isPublished = !video.isPublished;
+    await video.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            video.isPublished,
+            "check published or not"
+
+        )
+    );
 });
+
+const downloadVideoById = async (req, res, next) => {
+    try {
+        const { videoId } = req.params;
+
+        // Find the video by ID in your database
+        const video = await Video.findById(videoId);
+
+        if (!video) {
+            return res.status(404).json({ message: "Video not found" });
+        }
+
+        // Define the local directory path to save the downloaded video
+        const downloadDirectory = './downloads';
+        // Create the directory if it doesn't exist
+        await mkdirp(downloadDirectory);
+
+        // Define the local file path to save the downloaded video
+        const localFilePath = `${downloadDirectory}/${video.title}.mp4`;
+
+        // Download the video from Cloudinary and save it locally
+        await downloadFile(video.videoFile, localFilePath);
+
+        console.log("Video downloaded successfully");
+
+        // Set headers for the download response
+        res.setHeader("Content-Type", "video/mp4");
+        res.setHeader("Content-Disposition", `attachment; filename="${video.title}.mp4"`);
+
+        // Create a read stream from the local file and pipe it to the response
+        const stream = fs.createReadStream(localFilePath);
+        stream.pipe(res);
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
 
 export {
     getAllVideos,
@@ -199,5 +281,6 @@ export {
     getVideoById,
     updateVideo,
     deleteVideo,
-    togglePublishStatus
+    togglePublishStatus,
+    downloadVideoById
 };

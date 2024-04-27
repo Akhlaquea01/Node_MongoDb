@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import axios from "axios";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -82,5 +83,31 @@ const getAllItemsFromCloudinary = async (options = {}) => {
     }
 };
 
+const downloadFile = async (videoUrl, localFilePath) => {
+    try {
+        // Make a GET request to the video URL
+        const response = await axios.get(videoUrl, { responseType: 'stream' });
 
-export { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary, getAllItemsFromCloudinary };
+        // Create a writable stream to save the file
+        const writer = fs.createWriteStream(localFilePath);
+
+        // Pipe the response data to the writable stream
+        response.data.pipe(writer);
+        console.log(response,'response');
+        return new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+    } catch (error) {
+        console.error("Error downloading video:", error);
+        return null;
+    }
+};
+
+export {
+    uploadOnCloudinary,
+    deleteFromCloudinaryByUrl,
+    getAllImagesFromCloudinary,
+    getAllItemsFromCloudinary,
+    downloadFile
+};
