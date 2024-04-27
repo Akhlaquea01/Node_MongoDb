@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinaryByUrl } from "../utils/cloudinary.js";
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -91,8 +91,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "thumbnail path is required");
     }
 
-    const video = await uploadOnCloudinary(videoUrl,'videoUrl');
-    const thumbnail = await uploadOnCloudinary(thumbnailUrl,'thumbnailUrl');
+    const video = await uploadOnCloudinary(videoUrl, 'video');
+    const thumbnail = await uploadOnCloudinary(thumbnailUrl, 'thumbnail');
     console.log(video);
 
 
@@ -119,11 +119,68 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     //TODO: get video by id
+
+    const userVideo = await Video.findById(videoId);
+    console.log(userVideo?.owner.toString());
+    console.log(req.user?._id.toString());
+
+    if (!userVideo || ((!userVideo.isPublished) && (!userVideo.owner === req.user._id))) {
+        throw new apiError(400, "video ur seacrching for doesnot exist");
+    }
+
+
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            userVideo,
+            "video found successfullly"
+        )
+    );
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     //TODO: update video details like title, description, thumbnail
+
+    const { title, description } = req.body;
+    if (!(title || description)) {
+        throw new ApiError(400, "user should provide title or discription");
+    }
+    const thumbnailUrl = req.file?.path;
+
+    if (!thumbnailUrl) {
+        throw new ApiError(400, "thumbnail path is required");
+    }
+
+    const myVideo = await Video.findById(videoId);
+
+    if (!myVideo || !(myVideo.owner.toString() === req.user._id.toString())) {
+        throw new apiError(400, "Cannot find the video");
+    }
+
+    const updatedthumbnail = await uploadOnCloudinary(thumbnailUrl);
+    await deleteFromCloudinaryByUrl(myVideo.thumbnail);
+    const newVideo = await Video.findByIdAndUpdate(videoId
+        ,
+        {
+            $set: {
+                title: title,
+                description: description,
+                thumbnail: updatedthumbnail?.url
+            }
+        },
+        {
+            new: true,
+        });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            newVideo,
+            "updated successfully"
+        )
+    );
 
 });
 
