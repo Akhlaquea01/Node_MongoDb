@@ -7,6 +7,10 @@ const commentSchema = new Schema(
             type: String,
             required: true
         },
+        formattedContent: {
+            type: String,
+            required: false
+        },
         video: {
             type: Schema.Types.ObjectId,
             ref: "Video"
