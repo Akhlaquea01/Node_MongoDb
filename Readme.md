@@ -22,6 +22,7 @@
 
 5. **dotenv** (^16.3.1): 
    - Dotenv is a module that loads environment variables from a .env file into process.env. It helps manage environment-specific configuration variables in Node.js applications and keeps sensitive information like API keys and database credentials out of version control.
+   Removed as it comes native with node v20.6.0
 
 6. **express** (^4.18.2): 
    - Express.js is a popular web application framework for Node.js. It provides a robust set of features for building web servers and APIs, including routing, middleware support, request handling, and more.
@@ -37,3 +38,7 @@
 
 10. **multer** (^1.4.5-lts.1): 
     - Multer is a middleware for handling multipart/form-data, which is primarily used for uploading files in web applications. It simplifies file uploads in Express.js applications by parsing and handling multipart/form-data requests.
+
+11. **axios** (^1.6.8): 
+    - Axios is a popular Promise-based HTTP client for making requests to servers. It works in both the browser and Node.js environments, providing a simple and intuitive API for performing HTTP requests. With Axios, you can easily make GET, POST, PUT, DELETE, and other types of HTTP requests, handle request and response interceptors, and manage request cancellation.
+
