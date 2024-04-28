@@ -108,11 +108,92 @@ const addComment = asyncHandler(async (req, res) => {
 
 const updateComment = asyncHandler(async (req, res) => {
     // TODO: update a comment
+    const { commentId } = req.params;
+    const { newcomment, formattedContent } = req.body;
+
+    if (!commentId) {
+        throw new ApiError(400, "commentId should be provided");
+    }
+
+    if (!newcomment) {
+        throw new ApiError(400, "New comment content is required");
+    }
+
+    const commentFound = await Comment.findById(commentId);
+    if (!commentFound) {
+        throw new ApiError(400, "Comment not found");
+    }
+
+    if (!(commentFound.owner.toString() === req.user?._id.toString())) {
+        throw new ApiError(400, "Only the owner can update the comment");
+    }
+
+    try {
+        const updatedComment = await Comment.findByIdAndUpdate(
+            commentId,
+            {
+                $set: {
+                    content: newcomment,
+                    formattedContent: formattedContent
+                }
+            },
+            { new: true }
+        );
+
+        if (!updatedComment) {
+            throw new ApiError(400, "Error occurred while updating comment");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                updatedComment,
+                "Comment updated successfully"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(500, error?.message || "Internal Server Error");
+    }
 });
+
 
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
-});
+
+    const { commentId } = req.params;
+    if (!commentId) {
+        throw new ApiError(400, "commentid should be there for deletion");
+    }
+
+    const commentFound = await Comment.findById(commentId);
+    if (!commentFound) {
+        throw new ApiError(400, "existed comment not found while deletion");
+    }
+    if (!(commentFound.owner.toString() === req.user?._id.toString())) {
+        throw new ApiError(400, "cannot delete only login user can delete");
+    }
+    try {
+
+        const deletion = await Comment.findByIdAndDelete(
+            commentId,
+        );
+        if (!deletion) {
+            throw new ApiError(400, "Error occured while deletion");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                "comment successfully deleted"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(401, "cannot delete" || error?.message);
+
+    }
+
+
+})
 
 export {
     getVideoComments,
