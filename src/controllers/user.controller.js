@@ -5,7 +5,7 @@ import { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudina
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-
+import { sendEmail, registrationEmail } from '../utils/email.js';
 
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
@@ -93,6 +93,15 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!createdUser) {
         throw new ApiError(500, "Something went wrong while registering the user");
     }
+    const mailOptions = {
+        from: process.env.EMAIL_ADDRESS,
+        to: 'akhlaquea01@gmail.com',
+        subject: 'Hello from Akhlaque',
+        // text: 'Hello, this is a test email sent from Node.js',
+        html: registrationEmail({ userName: username })
+    };
+
+    sendEmail(mailOptions);
 
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered Successfully")
@@ -295,7 +304,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is missing");
     }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath,'avatar');
+    const avatar = await uploadOnCloudinary(avatarLocalPath, 'avatar');
 
     if (!avatar.url) {
         throw new ApiError(400, "Error while uploading on avatar");
@@ -318,7 +327,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     // Delete old cover image if it exists
     if (user.avatar) {
-        await deleteFromCloudinaryByUrl(user.avatar,'avatar');
+        await deleteFromCloudinaryByUrl(user.avatar, 'avatar');
     }
     // Update user with new cover image URL
     user.avatar = avatar.url;
@@ -345,11 +354,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     // Delete old cover image if it exists
     if (user.coverImage) {
-        await deleteFromCloudinaryByUrl(user.coverImage,'coverImage');
+        await deleteFromCloudinaryByUrl(user.coverImage, 'coverImage');
     }
 
     // Upload new cover image
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath,'coverImage');
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath, 'coverImage');
 
     if (!coverImage.url) {
         throw new ApiError(400, "Error while uploading cover image");
@@ -369,9 +378,9 @@ const getItemsFromCloudinary = asyncHandler(async (req, res) => {
     try {
 
         const options = {
-            folderName: req.body?.folderName??'', // Specify the folder name from which you want to fetch items
-            resourceType: req.body?.resourceType??'image', // Specify the resource type
-            directoryPath: req.body?.directoryPath??'' // Specify the directory path where the items will be stored
+            folderName: req.body?.folderName ?? '', // Specify the folder name from which you want to fetch items
+            resourceType: req.body?.resourceType ?? 'image', // Specify the resource type
+            directoryPath: req.body?.directoryPath ?? '' // Specify the directory path where the items will be stored
         };
 
         // Call the getAllItemsFromCloudinary function with the options
