@@ -43,5 +43,9 @@
     - Axios is a popular Promise-based HTTP client for making requests to servers. It works in both the browser and Node.js environments, providing a simple and intuitive API for performing HTTP requests. With Axios, you can easily make GET, POST, PUT, DELETE, and other types of HTTP requests, handle request and response interceptors, and manage request cancellation.
 
 
-11. **nodemailer** (^6.9.13): 
+12. **nodemailer** (^6.9.13): 
     - Nodemailer is a module for Node.js applications that allows you to send emails easily. It supports Unicode, HTML content, attachments, and more. It can be used with various transport methods like SMTP, Sendmail, and Amazon SES.
+
+
+13. **socket.io** (^4.7.5): 
+    - Socket.IO is a JavaScript library that enables real-time, bidirectional communication between web clients and servers.Real-time Communication, Cross-platform Compatibility, WebSocket Support, Fallback Options, Event-Based Model, Room and Namespace Support, Error Handling, Scalability, Middleware Support, Authentication.
