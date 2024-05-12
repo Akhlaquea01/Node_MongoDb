@@ -49,3 +49,10 @@
 
 13. **socket.io** (^4.7.5): 
     - Socket.IO is a JavaScript library that enables real-time, bidirectional communication between web clients and servers.Real-time Communication, Cross-platform Compatibility, WebSocket Support, Fallback Options, Event-Based Model, Room and Namespace Support, Error Handling, Scalability, Middleware Support, Authentication.
+
+
+13. **swagger-jsdoc** (6.2.8): 
+    - swagger-jsdoc is an npm package that simplifies the process of generating Swagger documentation for Node.js applications. It allows developers to document their APIs using JSDoc comments directly within their code. These comments are then parsed by swagger-jsdoc to generate a Swagger specification in JSON format. By integrating swagger-jsdoc into their development workflow, developers can maintain their API documentation alongside their codebase, ensuring consistency and accuracy..
+
+13. **swagger-ui-express** (5.0.0): 
+    - swagger-ui-express provides middleware for Express.js applications to serve Swagger UI.Swagger UI is a user-friendly interface that allows developers and consumers to interact with the API documentation. It provides features such as endpoint exploration, request and response examples, and API testing directly from the browser. 
