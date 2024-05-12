@@ -22,6 +22,11 @@ export function setupWebSocketServer(app) {
             io.emit("chat message", msg); // Broadcast message to all connected clients
         });
 
+
+        socket.on('pingCommunity', ({ communityId, message }) => {
+            socket.broadcast.to(communityId).emit('ping', message);
+        });
+        
         // Handle disconnect event
         socket.on("disconnect", () => {
             console.log("User disconnected");
