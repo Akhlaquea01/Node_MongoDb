@@ -2,8 +2,20 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import swaggerUi from 'swagger-ui-express';
-import {swaggerSpec} from './utils/swaggerConfig.js';
+import { swaggerConfig } from './utils/swaggerConfig.js';
+import TelegramChatBot from './utils/telegramBot.js';
+
 const app = express();
+
+
+const token = process.env.YOUR_TELEGRAM_BOT_TOKEN;
+
+// Create an instance of TelegramChatBot
+const bot = new TelegramChatBot(token);
+
+
+// Start listening for any kind of message
+bot.handleMessage();
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
@@ -12,7 +24,7 @@ app.use(cors({
 
 
 // Serve Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerConfig));
 
 
 app.use(express.json({ limit: "16kb" }));
