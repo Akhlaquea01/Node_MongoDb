@@ -45,6 +45,7 @@ import playlistRouter from "./routes/playlist.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 import communityRouter from "./routes/community.routes.js";
 import bankRouter from "./routes/bank.routes.js";
+import categoryRouter from "./routes/category.routes.js";
 
 //routes declaration
 app.use("/api/v1/healthcheck", healthcheckRouter);
@@ -58,6 +59,7 @@ app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/community", communityRouter);
 app.use("/api/v1/account", bankRouter);
+app.use("/api/v1/categories", categoryRouter);
 
 // http://localhost:8000/api/v1/users/register
 
