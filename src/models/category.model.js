@@ -1,3 +1,4 @@
+// Finance Tracker App
 import mongoose, { Schema } from "mongoose";
 
 const CategorySchema = new mongoose.Schema({

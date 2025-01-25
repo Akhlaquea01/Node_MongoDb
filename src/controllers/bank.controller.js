@@ -1,3 +1,4 @@
+// Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Account, Transaction } from "../models/bank.model.js";
