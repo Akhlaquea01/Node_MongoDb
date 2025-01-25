@@ -4,19 +4,15 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch Backend Script",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/src/index.js",
-            "restart": true,
-            // "runtimeExecutable": "nodemon",
-            "runtimeArgs": [
-                "--experimental-json-modules",
-                "-r",
-                "dotenv/config"
-            ],
-            "console": "integratedTerminal"
+            "envFile": "${workspaceFolder}/.env",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "runtimeExecutable": "node"
         }
     ]
 }
