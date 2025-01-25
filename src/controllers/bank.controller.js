@@ -5,7 +5,7 @@ import { Category } from "../models/category.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
-// import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 
 const createAccount = asyncHandler(async (req, res) => {
@@ -181,7 +181,107 @@ const getTransactions = async (req, res) => {
     }
 };
 
+const getTransactionSummary = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Aggregate transactions to calculate total income and expenses
+        const summary = await Transaction.aggregate([
+            { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+            {
+                $group: {
+                    _id: null,
+                    totalIncome: {
+                        $sum: {
+                            $cond: [{ $eq: ["$transactionType", "credit"] }, "$amount", 0]
+                        }
+                    },
+                    totalExpense: {
+                        $sum: {
+                            $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (!summary) {
+            return res.status(404).json(new ApiResponse(404, null, "Transaction summary not found."));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { summary }, "Transaction summary fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error fetching transaction summary", error.message));
+    }
+};
+
+const getRecurringTransactions = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Fetch all recurring transactions
+        const recurringTransactions = await Transaction.find({ userId, isRecurring: true }).populate('categoryId').exec();
+
+        if (!recurringTransactions || recurringTransactions.length === 0) {
+            return res.status(404).json(new ApiResponse(404, null, "No recurring transactions found."));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { recurringTransactions }, "Recurring transactions fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error fetching recurring transactions", error.message));
+    }
+};
+
+
+const addRecurringTransaction = async (req, res) => {
+    try {
+        const { userId, accountId, transactionType, amount, categoryId, description, interval } = req.body;
+
+        // Create new recurring transaction
+        const newRecurringTransaction = new Transaction({
+            userId,
+            accountId,
+            transactionType,
+            amount,
+            categoryId,
+            description,
+            isRecurring: true,
+            interval, // Recurrence interval (e.g., daily, weekly, monthly)
+        });
+
+        await newRecurringTransaction.save();
+
+        return res.status(201).json(new ApiResponse(201, { newRecurringTransaction }, "Recurring transaction added successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error adding recurring transaction", error.message));
+    }
+};
+
+
+const updateRecurringTransaction = async (req, res) => {
+    try {
+        const { transactionId } = req.params;
+        const { amount, categoryId, description, interval } = req.body;
+
+        // Update recurring transaction
+        const updatedTransaction = await Transaction.findByIdAndUpdate(transactionId, {
+            amount,
+            categoryId,
+            description,
+            interval,
+        }, { new: true });
+
+        if (!updatedTransaction) {
+            return res.status(404).json(new ApiResponse(404, null, "Recurring transaction not found."));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { updatedTransaction }, "Recurring transaction updated successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error updating recurring transaction", error.message));
+    }
+};
+
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction
 
 };

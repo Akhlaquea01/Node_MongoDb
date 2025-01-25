@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction
 } from "../controllers/bank.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -17,5 +17,9 @@ router.post("/transaction", createTransaction);  // Create new transaction
 router.put("/transaction/:transactionId", updateTransaction);  // Update transaction by ID
 router.delete("/transaction/:transactionId", deleteTransaction);  // Delete transaction by ID
 router.get("/transaction/:userId", getTransactions);
+router.get("/transaction/summary/:userId", getTransactionSummary);
+router.get("/transaction/recurring/:userId", getRecurringTransactions);
+router.post("/transaction/recurring", addRecurringTransaction);
+router.put("/transaction/recurring/:transactionId", updateRecurringTransaction);
 
 export default router
