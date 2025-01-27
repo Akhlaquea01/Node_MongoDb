@@ -374,25 +374,20 @@ const getIncomeByUser = async (req, res) => {
     }
 };
 
+
 const getInvestmentsByUser = async (req, res) => {
     try {
         const { userId } = req.params;
         const { startDate, endDate } = req.query;
 
-        // Validate the userId
+        // Validate userId
         if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res
-                .status(400)
-                .json(new ApiResponse(400, null, "Invalid user ID"));
+            return res.status(400).json(new ApiResponse(400, null, "Invalid user ID"));
         }
 
         // Build query filters
         const filters = {
-            userId: new mongoose.Types.ObjectId(userId), // Use "new" with ObjectId
-            $or: [
-                { tags: { $in: ["#investment"] } }, // Check if "investment" tag exists
-                { "categoryId.name": /investment/i }, // Match investment categories (optional if category schema is linked)
-            ],
+            userId: new mongoose.Types.ObjectId(userId),
         };
 
         if (startDate && endDate) {
@@ -402,35 +397,40 @@ const getInvestmentsByUser = async (req, res) => {
             };
         }
 
-        // Fetch transactions
-        const investments = await Transaction.find(filters)
-            .populate("categoryId", "name") // Populate category names
+        // Fetch transactions and populate category details
+        const transactions = await Transaction.find(filters)
+            .populate("categoryId", "name") // Populate only the `name` field from Category
             .populate("accountId", "accountName")
             .sort({ date: -1 });
 
-        if (investments.length === 0) {
+        // Filter transactions for investment categories or those with tags
+        const investmentTransactions = transactions.filter((txn) => {
+            const isInvestment =
+                txn.categoryId?.name?.toLowerCase() === "investment"; // Check for "investment" category
+            const hasTags = txn.tags && txn.tags.length > 0; // Check if transaction has tags
+            return isInvestment || hasTags; // Include either based on investment category or tags
+        });
+
+        if (investmentTransactions.length === 0) {
             return res
                 .status(404)
-                .json(new ApiResponse(404, null, "No investment transactions found"));
+                .json(new ApiResponse(404, null, "No investment or tagged transactions found"));
         }
 
         return res.status(200).json(
             new ApiResponse(
                 200,
-                { investments },
-                "Investment transactions fetched successfully"
+                { investments: investmentTransactions },
+                "Investment or tagged transactions fetched successfully"
             )
         );
     } catch (error) {
         return res.status(500).json(
-            new ApiError(
-                500,
-                "Error fetching investment transactions",
-                error.message
-            )
+            new ApiError(500, "Error fetching investment or tagged transactions", error.message)
         );
     }
 };
+
 
 
 export {
