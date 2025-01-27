@@ -328,10 +328,112 @@ const getExpenseByUser = async (req, res) => {
             .json(new ApiError(500, "Error fetching expenses", error.message));
     }
 };
+const getIncomeByUser = async (req, res) => {
+    try {
+        const { userId } = req.params; // Extract userId from request params
+        const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
-export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser
+        // Build the query
+        const query = {
+            userId,
+            transactionType: "credit", // Filter only income (credits)
+        };
 
+        // Apply optional filters
+        if (startDate && endDate) {
+            query.date = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        if (categoryId) {
+            query.categoryId = categoryId; // Filter by category if provided
+        }
+
+        // Fetch expenses from the database
+        const expenses = await Transaction.find(query)
+            .populate("categoryId", "name") // Populate categoryId with category details (e.g., name)
+            .populate("accountId", "accountName") // Populate accountId with account details (e.g., accountName)
+            .sort({ date: -1 }); // Sort by date (most recent first)
+
+        // Check if expenses exist
+        if (!expenses.length) {
+            return res.status(404).json(new ApiResponse(404, null, "No Income found for the user"));
+        }
+
+        // Return success response
+        return res
+            .status(200)
+            .json(new ApiResponse(200, { expenses }, "Expenses fetched successfully"));
+    } catch (error) {
+        // Handle errors
+        return res
+            .status(500)
+            .json(new ApiError(500, "Error fetching expenses", error.message));
+    }
 };
 
-// getExpenseByUser //getIncomeByUser//getInvestmentsByUser   TODO
+const getInvestmentsByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        // Validate the userId
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res
+                .status(400)
+                .json(new ApiResponse(400, null, "Invalid user ID"));
+        }
+
+        // Build query filters
+        const filters = {
+            userId: new mongoose.Types.ObjectId(userId), // Use "new" with ObjectId
+            $or: [
+                { tags: { $in: ["#investment"] } }, // Check if "investment" tag exists
+                { "categoryId.name": /investment/i }, // Match investment categories (optional if category schema is linked)
+            ],
+        };
+
+        if (startDate && endDate) {
+            filters.date = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        // Fetch transactions
+        const investments = await Transaction.find(filters)
+            .populate("categoryId", "name") // Populate category names
+            .populate("accountId", "accountName")
+            .sort({ date: -1 });
+
+        if (investments.length === 0) {
+            return res
+                .status(404)
+                .json(new ApiResponse(404, null, "No investment transactions found"));
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                { investments },
+                "Investment transactions fetched successfully"
+            )
+        );
+    } catch (error) {
+        return res.status(500).json(
+            new ApiError(
+                500,
+                "Error fetching investment transactions",
+                error.message
+            )
+        );
+    }
+};
+
+
+export {
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser
+
+};
