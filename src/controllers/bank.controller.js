@@ -282,8 +282,55 @@ const updateRecurringTransaction = async (req, res) => {
     }
 };
 
+// Get Expenses by User
+const getExpenseByUser = async (req, res) => {
+    try {
+        const { userId } = req.params; // Extract userId from request params
+        const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
+
+        // Build the query
+        const query = {
+            userId,
+            transactionType: "debit", // Filter only expenses (debits)
+        };
+
+        // Apply optional filters
+        if (startDate && endDate) {
+            query.date = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        if (categoryId) {
+            query.categoryId = categoryId; // Filter by category if provided
+        }
+
+        // Fetch expenses from the database
+        const expenses = await Transaction.find(query)
+            .populate("categoryId", "name") // Populate categoryId with category details (e.g., name)
+            .populate("accountId", "accountName") // Populate accountId with account details (e.g., accountName)
+            .sort({ date: -1 }); // Sort by date (most recent first)
+
+        // Check if expenses exist
+        if (!expenses.length) {
+            return res.status(404).json(new ApiResponse(404, null, "No expenses found for the user"));
+        }
+
+        // Return success response
+        return res
+            .status(200)
+            .json(new ApiResponse(200, { expenses }, "Expenses fetched successfully"));
+    } catch (error) {
+        // Handle errors
+        return res
+            .status(500)
+            .json(new ApiError(500, "Error fetching expenses", error.message));
+    }
+};
+
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser
 
 };
 
