@@ -14,7 +14,7 @@
   "author": "Akhlaque Ahmad",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.6.8",
+    "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cloudinary": "^1.41.0",
     "cookie-parser": "^1.4.6",
@@ -26,6 +26,7 @@
     "multer": "^1.4.5-lts.1",
     "node-telegram-bot-api": "^0.65.1",
     "nodemailer": "^6.9.13",
+    "ollama": "^0.5.12",
     "socket.io": "^4.7.5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
