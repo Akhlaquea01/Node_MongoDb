@@ -31,4 +31,8 @@ const CategorySchema = new mongoose.Schema({
         default: Date.now,
     },
 });
+
+// Ensure uniqueness of category name per user
+CategorySchema.index({ name: 1, userId: 1 }, { unique: true });
+
 export const Category = mongoose.model("Category", CategorySchema);

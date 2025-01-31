@@ -9,7 +9,7 @@ import mongoose from "mongoose";
 // Create a Budget
 const createBudget = async (req, res) => {
     try {
-        const { userId, name, amount, type, startDate, endDate, categoryId } = req.body;
+        const { userId, name, amount, type, startDate, endDate, categoryId, recurring } = req.body;
 
         const newBudget = new Budget({
             userId,
@@ -18,7 +18,8 @@ const createBudget = async (req, res) => {
             type,
             startDate,
             endDate,
-            categoryId
+            categoryId,
+            recurring
         });
 
         await newBudget.save();
@@ -90,27 +91,24 @@ const getMonthlyBudgetSummary = async (req, res) => {
         }
 
         const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
+        const endDate = new Date(year, month, 0, 23, 59, 59); // Last day of the month
 
         const budgets = await Budget.aggregate([
             {
                 $match: {
                     userId: new mongoose.Types.ObjectId(userId),
-                    startDate: { $lte: endDate },
-                    endDate: { $gte: startDate },
                 },
             },
             {
                 $lookup: {
                     from: "transactions",
-                    localField: "categoryId",
-                    foreignField: "categoryId",
-                    as: "transactions",
+                    let: { category: "$categoryId" },
                     pipeline: [
                         {
                             $match: {
                                 userId: new mongoose.Types.ObjectId(userId),
                                 date: { $gte: startDate, $lte: endDate },
+                                $expr: { $eq: ["$categoryId", "$$category"] }, // ✅ Match by categoryId
                             },
                         },
                         {
@@ -120,13 +118,14 @@ const getMonthlyBudgetSummary = async (req, res) => {
                             },
                         },
                     ],
+                    as: "transactions",
                 },
             },
             {
                 $project: {
                     categoryId: 1,
-                    amount: 1,
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
+                    amount: 1, // Budgeted amount
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }, // Transactions total
                     remaining: {
                         $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
                     },
@@ -145,6 +144,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
 };
 
 
+
 const getYearlyBudgetSummary = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -161,21 +161,18 @@ const getYearlyBudgetSummary = async (req, res) => {
             {
                 $match: {
                     userId: new mongoose.Types.ObjectId(userId),
-                    startDate: { $lte: endDate },
-                    endDate: { $gte: startDate },
                 },
             },
             {
                 $lookup: {
                     from: "transactions",
-                    localField: "categoryId",
-                    foreignField: "categoryId",
-                    as: "transactions",
+                    let: { category: "$categoryId" },
                     pipeline: [
                         {
                             $match: {
                                 userId: new mongoose.Types.ObjectId(userId),
                                 date: { $gte: startDate, $lte: endDate },
+                                $expr: { $eq: ["$categoryId", "$$category"] }, // ✅ Match transactions by categoryId
                             },
                         },
                         {
@@ -185,13 +182,14 @@ const getYearlyBudgetSummary = async (req, res) => {
                             },
                         },
                     ],
+                    as: "transactions",
                 },
             },
             {
                 $project: {
                     categoryId: 1,
-                    amount: 1,
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
+                    amount: 1, // Budgeted amount
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }, // Transactions total
                     remaining: {
                         $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
                     },
@@ -208,6 +206,8 @@ const getYearlyBudgetSummary = async (req, res) => {
         return res.status(500).json(new ApiError(500, "Error fetching yearly budget summary", error.message));
     }
 };
+
+
 
 export {
     createBudget, updateBudget, deleteBudget, getAllBudgets, getMonthlyBudgetSummary, getYearlyBudgetSummary
