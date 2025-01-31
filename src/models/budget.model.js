@@ -16,6 +16,11 @@ const BudgetSchema = new mongoose.Schema({
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     createdAt: { type: Date, default: Date.now },
+    recurring: {
+        type: String,
+        enum: ["monthly", "yearly", "none"],
+        default: "none",
+    },
 });
 
 export const Budget = mongoose.model("Budget", BudgetSchema);

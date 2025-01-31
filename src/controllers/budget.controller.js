@@ -80,7 +80,136 @@ const getAllBudgets = async (req, res) => {
     }
 };
 
+const getMonthlyBudgetSummary = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { month, year } = req.query;
+
+        if (!month || !year) {
+            return res.status(400).json(new ApiError(400, "Month and Year are required"));
+        }
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
+
+        const budgets = await Budget.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    startDate: { $lte: endDate },
+                    endDate: { $gte: startDate },
+                },
+            },
+            {
+                $lookup: {
+                    from: "transactions",
+                    localField: "categoryId",
+                    foreignField: "categoryId",
+                    as: "transactions",
+                    pipeline: [
+                        {
+                            $match: {
+                                userId: new mongoose.Types.ObjectId(userId),
+                                date: { $gte: startDate, $lte: endDate },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: "$categoryId",
+                                totalSpent: { $sum: "$amount" },
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                $project: {
+                    categoryId: 1,
+                    amount: 1,
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
+                    remaining: {
+                        $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
+                    },
+                },
+            },
+        ]);
+
+        if (!budgets.length) {
+            return res.status(404).json(new ApiResponse(404, null, "No budgets found for the given month"));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { budgets }, "Monthly budget summary fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error fetching monthly budget summary", error.message));
+    }
+};
+
+
+const getYearlyBudgetSummary = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { year } = req.query;
+
+        if (!year) {
+            return res.status(400).json(new ApiError(400, "Year is required"));
+        }
+
+        const startDate = new Date(year, 0, 1);
+        const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+        const budgets = await Budget.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    startDate: { $lte: endDate },
+                    endDate: { $gte: startDate },
+                },
+            },
+            {
+                $lookup: {
+                    from: "transactions",
+                    localField: "categoryId",
+                    foreignField: "categoryId",
+                    as: "transactions",
+                    pipeline: [
+                        {
+                            $match: {
+                                userId: new mongoose.Types.ObjectId(userId),
+                                date: { $gte: startDate, $lte: endDate },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: "$categoryId",
+                                totalSpent: { $sum: "$amount" },
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                $project: {
+                    categoryId: 1,
+                    amount: 1,
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
+                    remaining: {
+                        $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
+                    },
+                },
+            },
+        ]);
+
+        if (!budgets.length) {
+            return res.status(404).json(new ApiResponse(404, null, "No budgets found for the given year"));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { budgets }, "Yearly budget summary fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error fetching yearly budget summary", error.message));
+    }
+};
+
 export {
-    createBudget, updateBudget, deleteBudget, getAllBudgets
+    createBudget, updateBudget, deleteBudget, getAllBudgets, getMonthlyBudgetSummary, getYearlyBudgetSummary
 
 }

@@ -5,7 +5,7 @@ const CategorySchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        unique: true, // Ensure category names are unique globally or per user.
+        unique: true,
     },
     type: {
         type: String,
@@ -19,7 +19,7 @@ const CategorySchema = new mongoose.Schema({
     },
     icon: {
         type: String,
-        default: null, // Optional field to store an icon or emoji for the category.
+        default: null,
     },
     parentCategory: {
         type: mongoose.Schema.Types.ObjectId,
