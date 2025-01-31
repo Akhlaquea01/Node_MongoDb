@@ -12,10 +12,10 @@ const createCategory = asyncHandler(async (req, res) => {
     try {
         const { name, type, userId, icon, parentCategory } = req.body;
 
-        // Check if category with the same name already exists
-        const existingCategory = await Category.findOne({ name });
+        // Check if category with the same name already exists for the same user
+        const existingCategory = await Category.findOne({ name, userId });
         if (existingCategory) {
-            throw new ApiError(400, "Category with this name already exists.");
+            throw new ApiError(400, "Category with this name already exists for the user.");
         }
 
         // Create a new category
@@ -31,10 +31,10 @@ const createCategory = asyncHandler(async (req, res) => {
 
         return res.status(201).json(new ApiResponse(201, { category }, "Category created successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        throw new ApiError(500, "Something went wrong while creating the category", error.message);
     }
-
 });
+
 const getCategories = asyncHandler(async (req, res) => {
     try {
         const { userId } = req.params; // Optional: fetch by userId for custom categories, all otherwise
@@ -63,6 +63,20 @@ const updateCategory = asyncHandler(async (req, res) => {
         const { categoryId } = req.params;
         const { name, icon, parentCategory } = req.body;
 
+        // Check if the category exists
+        const category = await Category.findById(categoryId);
+        if (!category) {
+            throw new ApiError(404, "Category not found.");
+        }
+
+        // If parentCategory is provided, check if it exists in the database
+        if (parentCategory) {
+            const parentCategoryExists = await Category.findById(parentCategory);
+            if (!parentCategoryExists) {
+                throw new ApiError(400, "Parent category does not exist.");
+            }
+        }
+
         // Update category
         const updatedCategory = await Category.findByIdAndUpdate(categoryId, {
             name,
@@ -70,16 +84,12 @@ const updateCategory = asyncHandler(async (req, res) => {
             parentCategory,
         }, { new: true });
 
-        if (!updatedCategory) {
-            throw new ApiError(404, "Category not found.");
-        }
-
         return res.status(200).json(new ApiResponse(200, { updatedCategory }, "Category updated successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        throw new ApiError(500, "Something went wrong while updating the category", error.message);
     }
-
 });
+
 const deleteCategory = asyncHandler(async (req, res) => {
     try {
         const { categoryId } = req.params;
