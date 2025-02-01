@@ -9,6 +9,7 @@ const BudgetSchema = new mongoose.Schema({
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
+        unique: true,
         required: true,
     },
     amount: { type: Number, required: true }, // Budgeted amount
