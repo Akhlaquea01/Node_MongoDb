@@ -92,7 +92,7 @@ const AccountSchema = new mongoose.Schema(
         },
         accountType: {
             type: String,
-            enum: ["bank", "credit card", "wallet", "cash", "other"],
+            enum: ["bank", "credit card", "wallet", "cash", "demat", "other"],
             required: true,
         },
         accountName: {
@@ -101,12 +101,12 @@ const AccountSchema = new mongoose.Schema(
         },
         accountNumber: {
             type: String,
-            default: null, // Optional for wallets and cash
+            default: null,
         },
         currency: {
             type: String,
             required: true,
-            default: "INR", // ISO 4217 currency code
+            default: "₹",
         },
         balance: {
             type: Number,
