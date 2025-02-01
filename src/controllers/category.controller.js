@@ -37,26 +37,24 @@ const createCategory = asyncHandler(async (req, res) => {
 
 const getCategories = asyncHandler(async (req, res) => {
     try {
-        const { userId } = req.params; // Optional: fetch by userId for custom categories, all otherwise
+        const { userId } = req.params;
 
-        let categories;
-        if (userId) {
-            // Fetch custom categories for a user
-            categories = await Category.find({ userId }).populate('parentCategory').exec();
-        } else {
-            // Fetch all predefined categories
-            categories = await Category.find({ type: "predefined" }).exec();
+        // Fetch predefined categories (always included)
+        const predefinedCategories = await Category.find({ type: "predefined" }).exec();
+
+        // Fetch user-specific custom categories if userId is provided and valid
+        let customCategories = [];
+        if (userId && userId !== '0') {
+            customCategories = await Category.find({ userId }).populate('parentCategory').exec();
         }
 
-        if (!categories) {
-            throw new ApiError(404, "No categories found.");
-        }
+        // Merge both categories
+        const categories = [...predefinedCategories, ...customCategories];
 
         return res.status(200).json(new ApiResponse(200, { categories }, "Categories fetched successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        throw new ApiError(500, "Something went wrong while fetching categories", error.message);
     }
-
 });
 const updateCategory = asyncHandler(async (req, res) => {
     try {
