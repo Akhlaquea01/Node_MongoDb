@@ -142,6 +142,63 @@ const createTransaction = async (req, res) => {
     }
 };
 
+const createMultipleTransactions = async (req, res) => {
+    const { transactions } = req.body; // Expecting an array of transactions
+
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return res.status(400).json(new ApiError(400, "Invalid input", "Transactions array is required"));
+    }
+
+    try {
+        const currentDate = new Date();
+        const savedTransactions = [];
+        const budgetUpdates = [];
+
+        for (const txn of transactions) {
+            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = txn;
+
+            // Create new transaction
+            const newTransaction = new Transaction({
+                userId,
+                accountId,
+                transactionType,
+                amount,
+                categoryId,
+                description,
+                tags,
+                isRecurring,
+                location,
+                sharedWith
+            });
+
+            await newTransaction.save();
+            savedTransactions.push(newTransaction);
+
+            // Find the corresponding budget for the category in the current date range
+            const budget = await Budget.findOne({
+                userId,
+                categoryId,
+                startDate: { $lte: currentDate },
+                endDate: { $gte: currentDate }
+            });
+
+            // If a budget exists, update the spent amount
+            if (budget) {
+                budget.spent += amount;
+                budgetUpdates.push(budget.save());
+            }
+        }
+
+        // Execute all budget updates in parallel
+        await Promise.all(budgetUpdates);
+
+        return res.status(201).json(new ApiResponse(201, { transactions: savedTransactions }, "Transactions created successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Error while creating transactions", error.message));
+    }
+};
+
+
 
 const updateTransaction = async (req, res) => {
     const { transactionId } = req.params;
@@ -540,6 +597,6 @@ const getInvestmentsByUser = async (req, res) => {
 
 
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions
 
 };

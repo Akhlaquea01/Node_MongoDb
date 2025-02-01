@@ -14,7 +14,7 @@ export const setApiConfig = (apiUrl, model) => {
 };
 
 // Function to parse the response string and extract the final message
-const parseResponse = (responseStr) => {
+export const parseResponse = (responseStr) => {
     // Split the response string by newline character to separate the JSON objects
     const responseChunks = responseStr.split('\n');
 
