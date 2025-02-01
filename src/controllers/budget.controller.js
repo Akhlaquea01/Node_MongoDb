@@ -69,7 +69,11 @@ const getAllBudgets = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        const budgets = await Budget.find({ userId });
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json(new ApiError(400, "Invalid user ID"));
+        }
+
+        const budgets = await Budget.find({ userId: new mongoose.Types.ObjectId(userId) });
 
         if (!budgets.length) {
             return res.status(404).json(new ApiResponse(404, null, "No budgets found"));
