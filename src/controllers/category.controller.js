@@ -1,6 +1,5 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
 import { Account, Transaction } from "../models/bank.model.js";
 import { Category } from "../models/category.model.js";
 
@@ -15,7 +14,9 @@ const createCategory = asyncHandler(async (req, res) => {
         // Check if category with the same name already exists for the same user
         const existingCategory = await Category.findOne({ name, userId });
         if (existingCategory) {
-            throw new ApiError(400, "Category with this name already exists for the user.");
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Category with this name already exists for the user.", { message: "Category with this name already exists for the user." })
+            );
         }
 
         // Create a new category
@@ -31,7 +32,9 @@ const createCategory = asyncHandler(async (req, res) => {
 
         return res.status(201).json(new ApiResponse(201, { category }, "Category created successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the category", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 
@@ -53,7 +56,9 @@ const getCategories = asyncHandler(async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { categories }, "Categories fetched successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while fetching categories", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 const updateCategory = asyncHandler(async (req, res) => {
@@ -64,14 +69,18 @@ const updateCategory = asyncHandler(async (req, res) => {
         // Check if the category exists
         const category = await Category.findById(categoryId);
         if (!category) {
-            throw new ApiError(404, "Category not found.");
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Category not found.", { message: "Category not found." })
+            );
         }
 
         // If parentCategory is provided, check if it exists in the database
         if (parentCategory) {
             const parentCategoryExists = await Category.findById(parentCategory);
             if (!parentCategoryExists) {
-                throw new ApiError(400, "Parent category does not exist.");
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Parent category does not exist.", { message: "Parent category does not exist." })
+                );
             }
         }
 
@@ -84,7 +93,9 @@ const updateCategory = asyncHandler(async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { updatedCategory }, "Category updated successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while updating the category", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 
@@ -96,12 +107,16 @@ const deleteCategory = asyncHandler(async (req, res) => {
         const deletedCategory = await Category.findByIdAndDelete(categoryId);
 
         if (!deletedCategory) {
-            throw new ApiError(404, "Category not found.");
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Category not found.", { message: "Category not found." })
+            );
         }
 
         return res.status(200).json(new ApiResponse(200, null, "Category deleted successfully"));
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });

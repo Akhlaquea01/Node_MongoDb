@@ -54,7 +54,9 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, error.message || "unable to like and dislike a video");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -105,7 +107,9 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, "unable to like and dislike a comment");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -158,7 +162,9 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, "unable to like and dislike a tweet");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 }
@@ -208,7 +214,9 @@ const getLikedVideos = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, "cannot get videos" || error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 

@@ -118,7 +118,9 @@ const updateTweet = asyncHandler(async (req, res) => {
 
         );
     } catch (error) {
-        throw new ApiError(401, error.message || "cannot update tweet");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 
@@ -156,7 +158,9 @@ const deleteTweet = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, error?.message || "tweet cannot be deleted");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 

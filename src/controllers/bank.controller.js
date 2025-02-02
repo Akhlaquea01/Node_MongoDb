@@ -1,6 +1,5 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
 import { Account, Transaction } from "../models/bank.model.js";
 import { Category } from "../models/category.model.js";
 import { Budget } from "../models/budget.model.js";
@@ -32,10 +31,12 @@ const createAccount = asyncHandler(async (req, res) => {
 
         await account.save();
         return res.status(201).json(
-            new ApiResponse(200, account, "Account created successfully")
+            new ApiResponse(201, account, "Account created successfully")
         );
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong while creating Account", error)
+        );
     }
 
 });
@@ -59,13 +60,19 @@ const updateAccount = asyncHandler(async (req, res) => {
         );
 
         if (!updatedAccount) {
-            throw new ApiError(400, "Account not found");
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Account not found", {
+                    message: `Account not found with accountId:${accountId}`
+                })
+            );
         }
-        return res.status(201).json(
+        return res.status(200).json(
             new ApiResponse(200, { account: updatedAccount }, "Account updated successfully")
         );
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -77,13 +84,17 @@ const deleteAccount = asyncHandler(async (req, res) => {
         const deletedAccount = await Account.findByIdAndDelete(accountId);
 
         if (!deletedAccount) {
-            throw new ApiError(404, "Account not found");
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Account not found", { message: "Account not found" })
+            );
         }
-        return res.status(201).json(
+        return res.status(200).json(
             new ApiResponse(200, { message: "Account deleted successfully" }, "Account deleted successfully")
         );
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -92,11 +103,13 @@ const getAccount = asyncHandler(async (req, res) => {
         const { userId } = req.query;
 
         const accounts = await Account.find({ userId });
-        return res.status(201).json(
-            new ApiResponse(200, { accounts }, "Account deleted successfully")
+        return res.status(200).json(
+            new ApiResponse(200, { accounts }, "Account fetched successfully")
         );
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while creating the account", error.message);
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -147,9 +160,11 @@ const createTransaction = async (req, res) => {
             }
         }
 
-        return res.status(201).json(new ApiResponse(200, { transaction: newTransaction }, "Transaction created successfully"));
+        return res.status(201).json(new ApiResponse(201, { transaction: newTransaction }, "Transaction created successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error while creating transaction", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -157,7 +172,9 @@ const createMultipleTransactions = async (req, res) => {
     const { transactions } = req.body; // Expecting an array of transactions
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
-        return res.status(400).json(new ApiError(400, "Invalid input", "Transactions array is required"));
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Invalid input", { message: "Transaction Array is requried" })
+        );
     }
 
     try {
@@ -216,7 +233,9 @@ const createMultipleTransactions = async (req, res) => {
 
         return res.status(201).json(new ApiResponse(201, { transactions: savedTransactions }, "Transactions created successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error while creating transactions", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -231,7 +250,9 @@ const updateTransaction = async (req, res) => {
         const oldTransaction = await Transaction.findById(transactionId);
 
         if (!oldTransaction) {
-            return res.status(404).json(new ApiError(404, "Transaction not found", "Transaction with the given ID does not exist"));
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Transaction not found", { message: "Transaction with the given ID does not exist" })
+            );
         }
 
         // Update the transaction
@@ -292,7 +313,9 @@ const updateTransaction = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { transaction: updatedTransaction }, "Transaction updated successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error while updating transaction", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -304,12 +327,16 @@ const deleteTransaction = async (req, res) => {
         const deletedTransaction = await Transaction.findByIdAndDelete(transactionId);
 
         if (!deletedTransaction) {
-            return res.status(404).json(new ApiError(404, "Transaction not found", "Transaction with given ID does not exist"));
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Transaction not found", { message: "Transaction with the given ID does not exist" })
+            );
         }
 
         return res.status(200).json(new ApiResponse(200, null, "Transaction deleted successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error while deleting transaction", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -363,7 +390,9 @@ const getTransactions = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { transactions }, "Transactions fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error while fetching transactions", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -397,7 +426,9 @@ const getTransactionSummary = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { summary }, "Transaction summary fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error fetching transaction summary", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -414,7 +445,9 @@ const getRecurringTransactions = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { recurringTransactions }, "Recurring transactions fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error fetching recurring transactions", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -439,7 +472,9 @@ const addRecurringTransaction = async (req, res) => {
 
         return res.status(201).json(new ApiResponse(201, { newRecurringTransaction }, "Recurring transaction added successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error adding recurring transaction", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -463,7 +498,9 @@ const updateRecurringTransaction = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { updatedTransaction }, "Recurring transaction updated successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error updating recurring transaction", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -507,10 +544,9 @@ const getExpenseByUser = async (req, res) => {
             .status(200)
             .json(new ApiResponse(200, { expenses }, "Expenses fetched successfully"));
     } catch (error) {
-        // Handle errors
-        return res
-            .status(500)
-            .json(new ApiError(500, "Error fetching expenses", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 const getIncomeByUser = async (req, res) => {
@@ -550,12 +586,11 @@ const getIncomeByUser = async (req, res) => {
         // Return success response
         return res
             .status(200)
-            .json(new ApiResponse(200, { expenses }, "Expenses fetched successfully"));
+            .json(new ApiResponse(200, { expenses }, "Income fetched successfully"));
     } catch (error) {
-        // Handle errors
-        return res
-            .status(500)
-            .json(new ApiError(500, "Error fetching expenses", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -611,7 +646,7 @@ const getInvestmentsByUser = async (req, res) => {
         );
     } catch (error) {
         return res.status(500).json(
-            new ApiError(500, "Error fetching investment or tagged transactions", error.message)
+            new ApiResponse(500, undefined, "Something went wrong", error)
         );
     }
 };

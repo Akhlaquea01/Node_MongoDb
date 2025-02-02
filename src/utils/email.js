@@ -16,7 +16,9 @@ export const sendEmail = async (mailOptions) => {
         const info = await transporter.sendMail(mailOptions);
         console.log('Email sent:', info.messageId);
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while sending mail");
+      return res.status(500).json(
+        new ApiResponse(500, undefined, "Something went wrong", error)
+      );
     }
 };
 

@@ -92,7 +92,9 @@ const getChannelStats = asyncHandler(async (req, res) => {
 
         return res.json(new ApiResponse(200, obj));
     } catch (error) {
-        throw new ApiError(500, "Internal Server Error");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 
@@ -108,7 +110,9 @@ const getChannelVideos = asyncHandler(async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, videos, "Published videos"));
     } catch (error) {
-        throw new ApiError(500, "Internal Server Error");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 

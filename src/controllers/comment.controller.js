@@ -152,7 +152,9 @@ const updateComment = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(500, error?.message || "Internal Server Error");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 
@@ -188,8 +190,9 @@ const deleteComment = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-        throw new ApiError(401, "cannot delete" || error?.message);
-
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 

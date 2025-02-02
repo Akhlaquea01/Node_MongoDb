@@ -1,13 +1,12 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
 import { Budget } from "../models/budget.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 // Create a Budget
-const createBudget = async (req, res) => {
+const createBudget = asyncHandler(async (req, res) => {
     try {
         const { userId, name, amount, type, startDate, endDate, categoryId, recurring } = req.body;
 
@@ -23,11 +22,13 @@ const createBudget = async (req, res) => {
         });
 
         await newBudget.save();
-        return res.status(201).json(new ApiResponse(200, { budget: newBudget }, "Budget created successfully"));
+        return res.status(201).json(new ApiResponse(201, { budget: newBudget }, "Budget created successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error creating budget", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
-};
+});
 
 // Update a Budget
 const updateBudget = async (req, res) => {
@@ -43,7 +44,9 @@ const updateBudget = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budget: updatedBudget }, "Budget updated successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error updating budget", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -60,7 +63,9 @@ const deleteBudget = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, null, "Budget deleted successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error deleting budget", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -70,7 +75,9 @@ const getAllBudgets = async (req, res) => {
         const { userId } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json(new ApiError(400, "Invalid user ID"));
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Invalid user ID", { message: "Invalid user ID" })
+            );
         }
 
         const budgets = await Budget.find({ userId: new mongoose.Types.ObjectId(userId) });
@@ -81,7 +88,9 @@ const getAllBudgets = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Budgets fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error fetching budgets", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -91,7 +100,9 @@ const getMonthlyBudgetSummary = async (req, res) => {
         const { month, year } = req.query;
 
         if (!month || !year) {
-            return res.status(400).json(new ApiError(400, "Month and Year are required"));
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Month and Year are required", { message: "Month and Year are required" })
+            );
         }
 
         const startDate = new Date(year, month - 1, 1);
@@ -143,7 +154,9 @@ const getMonthlyBudgetSummary = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Monthly budget summary fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error fetching monthly budget summary", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -155,7 +168,9 @@ const getYearlyBudgetSummary = async (req, res) => {
         const { year } = req.query;
 
         if (!year) {
-            return res.status(400).json(new ApiError(400, "Year is required"));
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Year is required", { message: "Year is required" })
+            );
         }
 
         const startDate = new Date(year, 0, 1);
@@ -207,7 +222,9 @@ const getYearlyBudgetSummary = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Yearly budget summary fetched successfully"));
     } catch (error) {
-        return res.status(500).json(new ApiError(500, "Error fetching yearly budget summary", error.message));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 

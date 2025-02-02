@@ -17,14 +17,17 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
         const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
 
         if (!user) {
-
-            throw new ApiError(401, "Invalid Access Token");
+            return res.status(401).json(
+                new ApiResponse(401, undefined, "Invalid access token", error)
+            );
         }
 
         req.user = user;
         next();
     } catch (error) {
-        throw new ApiError(401, error?.message || "Invalid access token");
+        return res.status(401).json(
+            new ApiResponse(401, undefined, "Invalid access token", error)
+        );
     }
 
 });

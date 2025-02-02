@@ -20,7 +20,9 @@ const generateAccessAndRefereshTokens = async (userId) => {
 
 
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating referesh and access token");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
@@ -237,7 +239,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
                 )
             );
     } catch (error) {
-        throw new ApiError(401, error?.message || "Invalid refresh token");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 
 });
@@ -393,7 +397,9 @@ const getItemsFromCloudinary = asyncHandler(async (req, res) => {
             return res.status(500).json({ message: 'Unable to fetch images from Cloudinary' });
         }
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error' });
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 });
 
