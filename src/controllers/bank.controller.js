@@ -134,6 +134,17 @@ const createTransaction = async (req, res) => {
         if (budget) {
             budget.spent += amount;
             await budget.save();
+        } else {
+            const budget = await Budget.findOne({
+                userId,
+                categoryId: "679503070a5043480a8a9a26",//other category
+                startDate: { $lte: currentDate },
+                endDate: { $gte: currentDate }
+            });
+            if (budget) {
+                budget.spent += amount;
+                await budget.save();
+            }
         }
 
         return res.status(201).json(new ApiResponse(200, { transaction: newTransaction }, "Transaction created successfully"));
@@ -186,6 +197,17 @@ const createMultipleTransactions = async (req, res) => {
             if (budget) {
                 budget.spent += amount;
                 budgetUpdates.push(budget.save());
+            } else {
+                const budget = await Budget.findOne({
+                    userId,
+                    categoryId: "679503070a5043480a8a9a26",//other category
+                    startDate: { $lte: currentDate },
+                    endDate: { $gte: currentDate }
+                });
+                if (budget) {
+                    budget.spent += amount;
+                    budgetUpdates.push(budget.save());
+                }
             }
         }
 
