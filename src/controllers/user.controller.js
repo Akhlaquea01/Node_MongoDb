@@ -1,5 +1,4 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary, deleteFromCloudinaryByUrl, getAllImagesFromCloudinary, getAllItemsFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -17,7 +16,6 @@ const generateAccessAndRefereshTokens = async (userId) => {
         await user.save({ validateBeforeSave: false });
 
         return { accessToken, refreshToken };
-
 
     } catch (error) {
         return res.status(500).json(
@@ -39,12 +37,15 @@ const registerUser = asyncHandler(async (req, res) => {
 
 
     const { fullName, email, username, password } = req.body;
-    //console.log("email: ", email);
 
     if (
-        [fullName, email, username, password].some((field) => field?.trim() === "")
+        [fullName, email, username, password].some((field) =>
+            field === null || field === undefined || field.trim() === ""
+        )
     ) {
-        throw new ApiError(400, "All fields are required");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "All fields are required", {})
+        );
     }
 
     const existedUser = await User.findOne({
@@ -52,32 +53,38 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (existedUser) {
-        throw new ApiError(409, "User with email or username already exists");
+        return res.status(409).json(
+            new ApiResponse(409, undefined, "User with email or username already exists", {})
+        );
     }
-    //console.log(req.files);
+
     let avatarLocalPath;
     if (req.files && req.files.avatar && req.files.avatar.length) {
         avatarLocalPath = req?.files?.avatar[0]?.path;
     }
-    //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
         coverImageLocalPath = req.files.coverImage[0].path;
     }
 
-
     if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar file is required");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Avatar file is required", {})
+        );
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath, 'avatar');
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath, 'coverImage');
-
-    if (!avatar) {
-        throw new ApiError(400, "Avatar file is required");
+    let coverImage;
+    if (coverImageLocalPath) {
+        coverImage = await uploadOnCloudinary(coverImageLocalPath, 'coverImage');
     }
 
+    if (!avatar) {
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Avatar file is required", {})
+        );
+    }
 
     const user = await User.create({
         fullName,
@@ -93,13 +100,15 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 
     if (!createdUser) {
-        throw new ApiError(500, "Something went wrong while registering the user");
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong while registering the user", {})
+        );
     }
+
     const mailOptions = {
         from: process.env.EMAIL_ADDRESS,
         to: 'akhlaquea01@gmail.com',
         subject: 'Hello from Akhlaque',
-        // text: 'Hello, this is a test email sent from Node.js',
         html: registrationEmail({ userName: username })
     };
 
@@ -108,7 +117,6 @@ const registerUser = asyncHandler(async (req, res) => {
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered Successfully")
     );
-
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -120,30 +128,29 @@ const loginUser = asyncHandler(async (req, res) => {
     //send cookie
 
     const { email, username, password } = req.body;
-    console.log(email);
 
     if (!username && !email) {
-        throw new ApiError(400, "username or email is required");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "username or email is required", {})
+        );
     }
-
-    // Here is an alternative of above code based on logic discussed in video:
-    // if (!(username || email)) {
-    //     throw new ApiError(400, "username or email is required")
-
-    // }
 
     const user = await User.findOne({
         $or: [{ username }, { email }]
     });
 
     if (!user) {
-        throw new ApiError(404, "User does not exist");
+        return res.status(404).json(
+            new ApiResponse(404, undefined, "User does not exist", {})
+        );
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
-        throw new ApiError(401, "Invalid user credentials");
+        return res.status(401).json(
+            new ApiResponse(401, undefined, "Invalid user credentials", {})
+        );
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
@@ -168,7 +175,6 @@ const loginUser = asyncHandler(async (req, res) => {
                 "User logged In Successfully"
             )
         );
-
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -200,7 +206,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
     if (!incomingRefreshToken) {
-        throw new ApiError(401, "unauthorized request");
+        return res.status(401).json(
+            new ApiResponse(401, undefined, "unauthorized request", {})
+        );
     }
 
     try {
@@ -212,12 +220,15 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const user = await User.findById(decodedToken?._id);
 
         if (!user) {
-            throw new ApiError(401, "Invalid refresh token");
+            return res.status(401).json(
+                new ApiResponse(401, undefined, "Invalid refresh token", {})
+            );
         }
 
         if (incomingRefreshToken !== user?.refreshToken) {
-            throw new ApiError(401, "Refresh token is expired or used");
-
+            return res.status(401).json(
+                new ApiResponse(401, undefined, "Refresh token is expired or used", {})
+            );
         }
 
         const options = {
@@ -243,19 +254,18 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
     }
-
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
-
-
     const user = await User.findById(req.user?._id);
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
     if (!isPasswordCorrect) {
-        throw new ApiError(400, "Invalid old password");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Invalid old password", {})
+        );
     }
 
     user.password = newPassword;
@@ -265,7 +275,6 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
-
 
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
@@ -281,7 +290,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     const { fullName, email } = req.body;
 
     if (!fullName || !email) {
-        throw new ApiError(400, "All fields are required");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "All fields are required", {})
+        );
     }
 
     const user = await User.findByIdAndUpdate(
@@ -305,37 +316,34 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = req.file?.path;
 
     if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar file is missing");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Avatar file is missing", {})
+        );
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath, 'avatar');
 
     if (!avatar.url) {
-        throw new ApiError(400, "Error while uploading on avatar");
-
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Error while uploading on avatar", {})
+        );
     }
 
     const user = await User.findById(req.user?._id).select("-password");
-    // const user = await User.findByIdAndUpdate(
-    //     req.user?._id,
-    //     {
-    //         $set: {
-    //             avatar: avatar.url
-    //         }
-    //     },
-    //     { new: true }
-    // ).select("-password");
+
     if (!user) {
-        throw new ApiError(404, "User not found");
+        return res.status(404).json(
+            new ApiResponse(404, undefined, "User not found", {})
+        );
     }
 
-    // Delete old cover image if it exists
     if (user.avatar) {
         await deleteFromCloudinaryByUrl(user.avatar, 'avatar');
     }
-    // Update user with new cover image URL
+
     user.avatar = avatar.url;
     await user.save();
+
     return res
         .status(200)
         .json(
@@ -347,32 +355,34 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path;
 
     if (!coverImageLocalPath) {
-        throw new ApiError(400, "Cover image file is missing");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Cover image file is missing", {})
+        );
     }
 
     const user = await User.findById(req.user?._id).select("-password");
 
     if (!user) {
-        throw new ApiError(404, "User not found");
+        return res.status(404).json(
+            new ApiResponse(404, undefined, "User not found", {})
+        );
     }
 
-    // Delete old cover image if it exists
     if (user.coverImage) {
         await deleteFromCloudinaryByUrl(user.coverImage, 'coverImage');
     }
 
-    // Upload new cover image
     const coverImage = await uploadOnCloudinary(coverImageLocalPath, 'coverImage');
 
     if (!coverImage.url) {
-        throw new ApiError(400, "Error while uploading cover image");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "Error while uploading cover image", {})
+        );
     }
 
-    // Update user with new cover image URL
     user.coverImage = coverImage.url;
     await user.save();
 
-    // Send response
     return res.status(200).json(
         new ApiResponse(200, user, "Cover image updated successfully")
     );
@@ -380,16 +390,13 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 const getItemsFromCloudinary = asyncHandler(async (req, res) => {
     try {
-
         const options = {
-            folderName: req.body?.folderName ?? '', // Specify the folder name from which you want to fetch items
-            resourceType: req.body?.resourceType ?? 'image', // Specify the resource type
-            directoryPath: req.body?.directoryPath ?? '' // Specify the directory path where the items will be stored
+            folderName: req.body?.folderName ?? '',
+            resourceType: req.body?.resourceType ?? 'image',
+            directoryPath: req.body?.directoryPath ?? ''
         };
 
-        // Call the getAllItemsFromCloudinary function with the options
         const item = await getAllItemsFromCloudinary(options);
-        // const item = await getAllImagesFromCloudinary();
 
         if (item) {
             return res.status(200).json(item);
@@ -403,13 +410,13 @@ const getItemsFromCloudinary = asyncHandler(async (req, res) => {
     }
 });
 
-
-
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
 
     if (!username?.trim()) {
-        throw new ApiError(400, "username is missing");
+        return res.status(400).json(
+            new ApiResponse(400, undefined, "username is missing", {})
+        );
     }
 
     const channel = await User.aggregate([
@@ -461,13 +468,14 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 avatar: 1,
                 coverImage: 1,
                 email: 1
-
             }
         }
     ]);
 
     if (!channel?.length) {
-        throw new ApiError(404, "channel does not exists");
+        return res.status(404).json(
+            new ApiResponse(404, undefined, "channel does not exists", {})
+        );
     }
 
     return res
@@ -530,7 +538,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
             )
         );
 });
-
 
 export {
     registerUser,
