@@ -538,6 +538,21 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         );
 });
 
+// Get all users (excluding passwords & refresh tokens)
+const getAllUsers = asyncHandler(async (req, res) => {
+    try {
+        const users = await User.find({}, "-password -refreshToken"); // Exclude sensitive fields
+
+        if (!users.length) {
+            return res.status(204).json(new ApiResponse(204, null, "No users found"));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { users }, "Users fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
+    }
+});
+
 export {
     registerUser,
     loginUser,
@@ -550,5 +565,6 @@ export {
     updateUserCoverImage,
     getUserChannelProfile,
     getWatchHistory,
-    getItemsFromCloudinary
+    getItemsFromCloudinary,
+    getAllUsers
 };
