@@ -69,7 +69,7 @@ const deleteBudget = async (req, res) => {
     }
 };
 
-// Get all Budgets for a User
+// Get all Budgets for a User with Category Name
 const getAllBudgets = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -80,10 +80,11 @@ const getAllBudgets = async (req, res) => {
             );
         }
 
-        const budgets = await Budget.find({ userId: new mongoose.Types.ObjectId(userId) });
+        const budgets = await Budget.find({ userId: new mongoose.Types.ObjectId(userId) })
+            .populate("categoryId", "name");
 
         if (!budgets.length) {
-            return res.status(404).json(new ApiResponse(404, null, "No budgets found"));
+            return res.status(204).json(new ApiResponse(204, null, "No budgets found"));
         }
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Budgets fetched successfully"));
