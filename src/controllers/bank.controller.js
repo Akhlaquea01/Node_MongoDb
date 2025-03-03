@@ -416,7 +416,7 @@ const getTransactionSummary = async (req, res) => {
             {
                 $match: {
                     userId: new mongoose.Types.ObjectId(userId),
-                    transactionDate: { $gte: startDate, $lt: endDate }
+                    date: { $gte: startDate, $lt: endDate }
                 }
             },
             {
