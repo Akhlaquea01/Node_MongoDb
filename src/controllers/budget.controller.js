@@ -72,7 +72,7 @@ const deleteBudget = async (req, res) => {
 // Get all Budgets for a User with Category Name
 const getAllBudgets = async (req, res) => {
     try {
-        const userId  = req.user?._id;
+        const userId = req.user?._id;
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json(
@@ -87,7 +87,14 @@ const getAllBudgets = async (req, res) => {
             return res.status(204).json(new ApiResponse(204, null, "No budgets found"));
         }
 
-        return res.status(200).json(new ApiResponse(200, { budgets }, "Budgets fetched successfully"));
+        // Transform response to rename categoryId to category
+        const formattedBudgets = budgets.map(budget => ({
+            ...budget.toObject(),
+            category: budget.categoryId,
+            categoryId: undefined // Remove the original categoryId
+        }));
+
+        return res.status(200).json(new ApiResponse(200, { budgets: formattedBudgets }, "Budgets fetched successfully"));
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
@@ -97,7 +104,7 @@ const getAllBudgets = async (req, res) => {
 
 const getMonthlyBudgetSummary = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
         const { month, year } = req.query;
 
         if (!month || !year) {
@@ -165,7 +172,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
 
 const getYearlyBudgetSummary = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
         const { year } = req.query;
 
         if (!year) {

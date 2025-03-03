@@ -11,7 +11,8 @@ import mongoose from "mongoose";
 
 const createAccount = asyncHandler(async (req, res) => {
     try {
-        const { userId, accountType, accountName, accountNumber, currency, balance, foreignDetails, isDefault } = req.body;
+        const { accountType, accountName, accountNumber, currency, balance, foreignDetails, isDefault } = req.body;
+        const userId = req.user._id;
 
         // Check if the account is being set as default and unset other default accounts for the user
         if (isDefault) {
@@ -100,7 +101,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
 });
 const getAccount = asyncHandler(async (req, res) => {
     try {
-        const { userId } = req.query;
+        const userId = req.user._id;
 
         const accounts = await Account.find({ userId });
         return res.status(200).json(
@@ -115,8 +116,8 @@ const getAccount = asyncHandler(async (req, res) => {
 });
 
 const createTransaction = async (req, res) => {
-    const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = req.body;
-
+    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = req.body;
+    const userId = req.user._id;
     try {
         // Create new transaction
         const newTransaction = new Transaction({
@@ -342,7 +343,7 @@ const deleteTransaction = async (req, res) => {
 
 const getTransactions = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
         const { startDate, endDate, transactionType, categoryId, accountId, minAmount, maxAmount, tags, isRecurring } = req.query;
 
         let filter = { userId };

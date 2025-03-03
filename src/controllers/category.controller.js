@@ -9,8 +9,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const createCategory = asyncHandler(async (req, res) => {
     try {
-        const { name, type, userId, icon, parentCategory } = req.body;
-
+        const { name, type, icon, parentCategory } = req.body;
+        const userId = req.user._id;
         // Check if category with the same name already exists for the same user
         const existingCategory = await Category.findOne({ name, userId });
         if (existingCategory) {
@@ -40,7 +40,7 @@ const createCategory = asyncHandler(async (req, res) => {
 
 const getCategories = asyncHandler(async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
 
         // Fetch predefined categories (always included)
         const predefinedCategories = await Category.find({ type: "predefined" }).exec();

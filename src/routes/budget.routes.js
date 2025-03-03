@@ -13,8 +13,8 @@ router.route("/create").post(createBudget);
 router.route("/:budgetId").put(updateBudget);
 router.route("/:budgetId").delete(deleteBudget);
 router.route("/getAll").get(getAllBudgets);
-router.route("/monthly/:userId").get(getMonthlyBudgetSummary);//?month=1&year=2025
-router.route("/yearly/:userId").get(getYearlyBudgetSummary);//?year=2025
+router.route("/monthly").get(getMonthlyBudgetSummary);//?month=1&year=2025
+router.route("/yearly").get(getYearlyBudgetSummary);//?year=2025
 
 
 export default router
