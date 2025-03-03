@@ -399,7 +399,7 @@ const getTransactions = async (req, res) => {
 
 const getTransactionSummary = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
 
         // Aggregate transactions to calculate total income and expenses
         const summary = await Transaction.aggregate([
@@ -435,7 +435,7 @@ const getTransactionSummary = async (req, res) => {
 
 const getRecurringTransactions = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
 
         // Fetch all recurring transactions
         const recurringTransactions = await Transaction.find({ userId, isRecurring: true }).populate('categoryId').exec();
@@ -508,7 +508,7 @@ const updateRecurringTransaction = async (req, res) => {
 // Get Expenses by User
 const getExpenseByUser = async (req, res) => {
     try {
-        const { userId } = req.params; // Extract userId from request params
+        const userId = req.user._id; // Extract userId from request params
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
@@ -552,7 +552,7 @@ const getExpenseByUser = async (req, res) => {
 };
 const getIncomeByUser = async (req, res) => {
     try {
-        const { userId } = req.params; // Extract userId from request params
+        const userId = req.user._id; // Extract userId from request params
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
@@ -598,7 +598,7 @@ const getIncomeByUser = async (req, res) => {
 
 const getInvestmentsByUser = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user._id;
         const { startDate, endDate } = req.query;
 
         // Validate userId
