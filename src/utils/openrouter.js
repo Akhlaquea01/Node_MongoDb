@@ -17,6 +17,7 @@ export async function getChatResponse(model, messages) {
         const completion = await openai.chat.completions.create({
             model: model || process.env.OPENROUTER_AI_MODEL,
             messages,
+            max_tokens: 10000,
         });
 
         // return parseResponse(completion.choices[0].message.content);

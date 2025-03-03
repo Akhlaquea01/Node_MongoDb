@@ -19,12 +19,12 @@ router.post("/transaction/multitxn", createMultipleTransactions);  // Create new
 router.put("/transaction/:transactionId", updateTransaction);  // Update transaction by ID
 router.delete("/transaction/:transactionId", deleteTransaction);  // Delete transaction by ID
 router.get("/transaction", getTransactions);
-router.get("/transaction/summary/:userId", getTransactionSummary);
-router.get("/transaction/recurring/:userId", getRecurringTransactions);
+router.get("/transaction/summary", getTransactionSummary);
+router.get("/transaction/recurring", getRecurringTransactions);
 router.post("/transaction/recurring", addRecurringTransaction);
 router.put("/transaction/recurring/:transactionId", updateRecurringTransaction);
-router.get("/transaction/expense/:userId", getExpenseByUser);
-router.get("/transaction/income/:userId", getIncomeByUser);
-router.get("/transaction/investment/:userId", getInvestmentsByUser);
+router.get("/transaction/expense", getExpenseByUser);
+router.get("/transaction/income", getIncomeByUser);
+router.get("/transaction/investment", getInvestmentsByUser);
 
 export default router
