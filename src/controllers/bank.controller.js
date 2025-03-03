@@ -401,9 +401,24 @@ const getTransactionSummary = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Aggregate transactions to calculate total income and expenses
+        // Extract month and year from query parameters; default to current month and year
+        const { month, year } = req.query;
+        const currentDate = new Date();
+        const queryMonth = month ? parseInt(month, 10) - 1 : currentDate.getMonth(); // Months are 0-based
+        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
+
+        // Calculate the start and end dates for the specified or current month
+        const startDate = new Date(queryYear, queryMonth, 1);
+        const endDate = new Date(queryYear, queryMonth + 1, 1);
+
+        // Aggregate transactions to calculate total income, expenses, and net amount
         const summary = await Transaction.aggregate([
-            { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    transactionDate: { $gte: startDate, $lt: endDate }
+                }
+            },
             {
                 $group: {
                     _id: null,
@@ -416,16 +431,24 @@ const getTransactionSummary = async (req, res) => {
                         $sum: {
                             $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0]
                         }
+                    },
+                    netAmount: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$transactionType", "credit"] },
+                                "$amount",
+                                { $multiply: ["$amount", -1] }
+                            ]
+                        }
                     }
                 }
             }
         ]);
 
-        if (!summary) {
-            return res.status(404).json(new ApiResponse(404, null, "Transaction summary not found."));
-        }
+        // If no transactions are found, initialize summary with zeros
+        const result = summary.length > 0 ? summary[0] : { totalIncome: 0, totalExpense: 0, netAmount: 0 };
 
-        return res.status(200).json(new ApiResponse(200, { summary }, "Transaction summary fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, result, "Transaction summary fetched successfully"));
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
