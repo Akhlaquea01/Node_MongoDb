@@ -8,14 +8,17 @@ import TelegramChatBot from './utils/telegramBot.js';
 const app = express();
 
 
-const token = process.env.YOUR_TELEGRAM_BOT_TOKEN;
-
-// Create an instance of TelegramChatBot
-const bot = new TelegramChatBot(token);
 
 
-// Start listening for any kind of message
-bot.handleMessage();
+if (process.env.TELEGRAM_BOT_ENABLE) {
+    const token = process.env.YOUR_TELEGRAM_BOT_TOKEN;
+
+    // Create an instance of TelegramChatBot
+    const bot = new TelegramChatBot(token);
+
+    // Start listening for any kind of message
+    bot.handleMessage();
+}
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
