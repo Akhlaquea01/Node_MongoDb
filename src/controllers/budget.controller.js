@@ -105,7 +105,12 @@ const getAllBudgets = async (req, res) => {
 const getMonthlyBudgetSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { month, year } = req.query;
+        let { month, year } = req.query;
+
+        // Default to the current month and year if not provided
+        const currentDate = new Date();
+        month = month ? parseInt(month) : currentDate.getMonth() + 1; // Months are 0-based
+        year = year ? parseInt(year) : currentDate.getFullYear();
 
         if (!month || !year) {
             return res.status(400).json(
@@ -118,9 +123,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
 
         const budgets = await Budget.aggregate([
             {
-                $match: {
-                    userId: new mongoose.Types.ObjectId(userId),
-                },
+                $match: { userId: new mongoose.Types.ObjectId(userId) },
             },
             {
                 $lookup: {
@@ -131,7 +134,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
                             $match: {
                                 userId: new mongoose.Types.ObjectId(userId),
                                 date: { $gte: startDate, $lte: endDate },
-                                $expr: { $eq: ["$categoryId", "$$category"] }, // ✅ Match by categoryId
+                                $expr: { $eq: ["$categoryId", "$$category"] },
                             },
                         },
                         {
@@ -145,10 +148,25 @@ const getMonthlyBudgetSummary = async (req, res) => {
                 },
             },
             {
+                $lookup: {
+                    from: "categories",
+                    localField: "categoryId",
+                    foreignField: "_id",
+                    as: "categoryDetails",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$categoryDetails",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
                 $project: {
                     categoryId: 1,
-                    amount: 1, // Budgeted amount
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }, // Transactions total
+                    categoryName: "$categoryDetails.name",
+                    amount: 1,
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
                     remaining: {
                         $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
                     },
@@ -162,33 +180,28 @@ const getMonthlyBudgetSummary = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Monthly budget summary fetched successfully"));
     } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
+
 
 
 
 const getYearlyBudgetSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { year } = req.query;
+        let { year } = req.query;
 
-        if (!year) {
-            return res.status(400).json(
-                new ApiResponse(400, undefined, "Year is required", { message: "Year is required" })
-            );
-        }
+        // Default to current year if not provided
+        const currentYear = new Date().getFullYear();
+        year = year ? parseInt(year) : currentYear;
 
         const startDate = new Date(year, 0, 1);
         const endDate = new Date(year, 11, 31, 23, 59, 59);
 
         const budgets = await Budget.aggregate([
             {
-                $match: {
-                    userId: new mongoose.Types.ObjectId(userId),
-                },
+                $match: { userId: new mongoose.Types.ObjectId(userId) },
             },
             {
                 $lookup: {
@@ -199,7 +212,7 @@ const getYearlyBudgetSummary = async (req, res) => {
                             $match: {
                                 userId: new mongoose.Types.ObjectId(userId),
                                 date: { $gte: startDate, $lte: endDate },
-                                $expr: { $eq: ["$categoryId", "$$category"] }, // ✅ Match transactions by categoryId
+                                $expr: { $eq: ["$categoryId", "$$category"] },
                             },
                         },
                         {
@@ -213,10 +226,25 @@ const getYearlyBudgetSummary = async (req, res) => {
                 },
             },
             {
+                $lookup: {
+                    from: "categories",
+                    localField: "categoryId",
+                    foreignField: "_id",
+                    as: "categoryDetails",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$categoryDetails",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
                 $project: {
                     categoryId: 1,
-                    amount: 1, // Budgeted amount
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }, // Transactions total
+                    categoryName: "$categoryDetails.name",
+                    amount: 1,
+                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
                     remaining: {
                         $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
                     },
@@ -230,11 +258,10 @@ const getYearlyBudgetSummary = async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, { budgets }, "Yearly budget summary fetched successfully"));
     } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
+
 
 
 
