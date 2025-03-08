@@ -11,6 +11,24 @@ const createBudget = asyncHandler(async (req, res) => {
     try {
         const { userId, name, amount, type, startDate, endDate, categoryId, recurring } = req.body;
 
+        // Required fields for validation
+        const requiredFields = { userId, name, amount, startDate, endDate, recurring };
+
+        // Check if any required field is missing or invalid
+        const missingFields = Object.entries(requiredFields)
+            .filter(([_, value]) => !value)
+            .map(([key]) => key);
+
+        // Validate ObjectIds separately
+        const invalidIds = [userId, categoryId].filter(id => id && !mongoose.Types.ObjectId.isValid(id));
+
+        if (missingFields.length || invalidIds.length) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Invalid request", {
+                    message: `Missing fields: ${missingFields.join(", ") || "None"}, Invalid IDs: ${invalidIds.join(", ") || "None"}`
+                })
+            );
+        }
         const newBudget = new Budget({
             userId,
             name,

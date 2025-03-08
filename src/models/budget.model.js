@@ -1,6 +1,7 @@
 // Finance Tracker App
 import mongoose, { Schema } from "mongoose";
 const BudgetSchema = new mongoose.Schema({
+    name: { type: String, required: false },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
