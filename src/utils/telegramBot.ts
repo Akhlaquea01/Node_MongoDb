@@ -1,6 +1,8 @@
 import TelegramBot from 'node-telegram-bot-api';
 
 class TelegramChatBot {
+    private bot: TelegramBot;
+
     constructor(token) {
         this.bot = new TelegramBot(token, { polling: true });
     }

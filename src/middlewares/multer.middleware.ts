@@ -12,7 +12,7 @@ const getDefaultStorage = (destination) => {
   });
 };
 
-export const upload = (options = {}) => {
+export const upload = (options:any = {}) => {
   const destination = options.destination || DEFAULT_DESTINATION;
   const fileFilter = options.fileFilter || defaultFileFilter;
   const limits = options.limits || getDefaultLimits();

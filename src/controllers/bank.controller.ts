@@ -346,7 +346,7 @@ const getTransactions = async (req, res) => {
         const userId = req.user._id;
         const { startDate, endDate, transactionType, categoryId, accountId, minAmount, maxAmount, tags, isRecurring } = req.query;
 
-        let filter = { userId };
+        let filter:any = { userId };
 
         // Filter by date range
         if (startDate || endDate) {
@@ -535,7 +535,7 @@ const getExpenseByUser = async (req, res) => {
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
-        const query = {
+        const query:any = {
             userId,
             transactionType: "debit", // Filter only expenses (debits)
         };
@@ -579,7 +579,7 @@ const getIncomeByUser = async (req, res) => {
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
-        const query = {
+        const query:any = {
             userId,
             transactionType: "credit", // Filter only income (credits)
         };
@@ -630,7 +630,7 @@ const getInvestmentsByUser = async (req, res) => {
         }
 
         // Build query filters
-        const filters = {
+        const filters:any = {
             userId: new mongoose.Types.ObjectId(userId),
         };
 

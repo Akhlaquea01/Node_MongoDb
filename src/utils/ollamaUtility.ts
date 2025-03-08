@@ -1,4 +1,4 @@
-// utils/ollamaUtility.js
+// utils/ollamaUtility
 
 import axios from 'axios';
 
@@ -58,7 +58,7 @@ export const getChatResponse = async (message) => {
 };
 
 /**
- * import { setApiConfig, getChatResponse } from './utils/ollamaUtility.js'
+ * import { setApiConfig, getChatResponse } from './utils/ollamaUtility'
  
 getChatResponse('Tell me a joke')
     .then((response) => console.log('Ollama response:', response));

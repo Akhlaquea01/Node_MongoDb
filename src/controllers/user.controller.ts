@@ -18,9 +18,9 @@ const generateAccessAndRefereshTokens = async (userId) => {
         return { accessToken, refreshToken };
 
     } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
+        return { accessToken: null, refreshToken: null };
+        // return new ApiResponse(500, undefined, "Something went wrong", error)
+
     }
 };
 
@@ -154,7 +154,11 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
-
+    if (accessToken === null || refreshToken === null) { 
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", {})
+        );
+    }
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
     const options = {
@@ -235,7 +239,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             secure: true
         };
 
-        const { accessToken, newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
+        const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
 
         return res
             .status(200)
