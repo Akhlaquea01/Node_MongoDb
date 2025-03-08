@@ -1,6 +1,7 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Budget } from "../models/budget.model.js";
+import { Transaction } from "../models/bank.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
@@ -107,19 +108,13 @@ const getMonthlyBudgetSummary = async (req, res) => {
         const userId = req.user._id;
         let { month, year } = req.query;
 
-        // Default to the current month and year if not provided
+        // Default to current month and year if not provided
         const currentDate = new Date();
-        month = month ? parseInt(month) : currentDate.getMonth() + 1; // Months are 0-based
+        month = month ? parseInt(month) : currentDate.getMonth() + 1;
         year = year ? parseInt(year) : currentDate.getFullYear();
 
-        if (!month || !year) {
-            return res.status(400).json(
-                new ApiResponse(400, undefined, "Month and Year are required", { message: "Month and Year are required" })
-            );
-        }
-
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59); // Last day of the month
+        const startDate = new Date(year, month - 1, 1, 0, 0, 0);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
 
         const budgets = await Budget.aggregate([
             {
@@ -128,18 +123,23 @@ const getMonthlyBudgetSummary = async (req, res) => {
             {
                 $lookup: {
                     from: "transactions",
-                    let: { category: "$categoryId" },
+                    let: { budgetId: "$_id", category: "$categoryId" },
                     pipeline: [
                         {
                             $match: {
                                 userId: new mongoose.Types.ObjectId(userId),
                                 date: { $gte: startDate, $lte: endDate },
-                                $expr: { $eq: ["$categoryId", "$$category"] },
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$budgetId", "$$budgetId"] }, // Match by budgetId
+                                        { $eq: ["$categoryId", "$$category"] }, // Fallback to categoryId
+                                    ],
+                                },
                             },
                         },
                         {
                             $group: {
-                                _id: "$categoryId",
+                                _id: "$budgetId", // Group by budgetId
                                 totalSpent: { $sum: "$amount" },
                             },
                         },
@@ -163,29 +163,32 @@ const getMonthlyBudgetSummary = async (req, res) => {
             },
             {
                 $project: {
+                    _id: "$_id", // Ensure correct budgetId in response
+                    budgetId: "$_id",
                     categoryId: 1,
-                    categoryName: "$categoryDetails.name",
-                    amount: 1,
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
-                    remaining: {
-                        $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
+                    categoryName: { $ifNull: ["$categoryDetails.name", "Others"] },
+                    monthlyBudget: "$amount",
+                    spent: {
+                        $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0],
                     },
+                },
+            },
+            {
+                $addFields: {
+                    remaining: { $subtract: ["$monthlyBudget", "$spent"] },
                 },
             },
         ]);
 
         if (!budgets.length) {
-            return res.status(404).json(new ApiResponse(404, null, "No budgets found for the given month"));
+            return res.status(404).json(new ApiResponse(404, null, `No budgets found for ${month}/${year}`));
         }
 
-        return res.status(200).json(new ApiResponse(200, { budgets }, "Monthly budget summary fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, { month, year, budgets }, "Monthly budget summary fetched successfully"));
     } catch (error) {
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
-
-
-
 
 const getYearlyBudgetSummary = async (req, res) => {
     try {
@@ -196,34 +199,29 @@ const getYearlyBudgetSummary = async (req, res) => {
         const currentYear = new Date().getFullYear();
         year = year ? parseInt(year) : currentYear;
 
-        const startDate = new Date(year, 0, 1);
-        const endDate = new Date(year, 11, 31, 23, 59, 59);
+        const startDate = new Date(year, 0, 1, 0, 0, 0); // First day of the year
+        const endDate = new Date(year, 11, 31, 23, 59, 59); // Last day of the year
 
+        // Fetch all transactions for the given year
+        const transactions = await Transaction.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    date: { $gte: startDate, $lte: endDate },
+                },
+            },
+            {
+                $group: {
+                    _id: "$categoryId",
+                    totalSpent: { $sum: "$amount" },
+                },
+            },
+        ]);
+
+        // Fetch budgets
         const budgets = await Budget.aggregate([
             {
                 $match: { userId: new mongoose.Types.ObjectId(userId) },
-            },
-            {
-                $lookup: {
-                    from: "transactions",
-                    let: { category: "$categoryId" },
-                    pipeline: [
-                        {
-                            $match: {
-                                userId: new mongoose.Types.ObjectId(userId),
-                                date: { $gte: startDate, $lte: endDate },
-                                $expr: { $eq: ["$categoryId", "$$category"] },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: "$categoryId",
-                                totalSpent: { $sum: "$amount" },
-                            },
-                        },
-                    ],
-                    as: "transactions",
-                },
             },
             {
                 $lookup: {
@@ -242,25 +240,56 @@ const getYearlyBudgetSummary = async (req, res) => {
             {
                 $project: {
                     categoryId: 1,
-                    categoryName: "$categoryDetails.name",
-                    amount: 1,
-                    spent: { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] },
-                    remaining: {
-                        $subtract: ["$amount", { $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0] }],
-                    },
+                    categoryName: { $ifNull: ["$categoryDetails.name", "Other"] },
+                    monthlyBudget: "$amount",
+                    annualBudget: { $multiply: ["$amount", 12] }, // Calculate yearly budget
                 },
             },
         ]);
 
-        if (!budgets.length) {
-            return res.status(404).json(new ApiResponse(404, null, "No budgets found for the given year"));
+        // Map transactions to their respective categories
+        const categorySpendingMap = transactions.reduce((acc, txn) => {
+            const categoryId = txn._id ? txn._id.toString() : "Other";
+            acc[categoryId] = txn.totalSpent;
+            return acc;
+        }, {});
+
+        // Final budget summary calculation
+        const yearlyBudgetSummary = budgets.map(budget => {
+            const categoryId = budget.categoryId ? budget.categoryId.toString() : "Other";
+            const spent = categorySpendingMap[categoryId] || 0;
+            return {
+                categoryId: budget.categoryId,
+                categoryName: budget.categoryName,
+                annualBudget: budget.annualBudget,
+                spent,
+                remaining: budget.annualBudget - spent,
+            };
+        });
+
+        // Handle transactions without a category (Others)
+        if (categorySpendingMap["Other"]) {
+            yearlyBudgetSummary.push({
+                categoryId: null,
+                categoryName: "Other",
+                annualBudget: 0,
+                spent: categorySpendingMap["Other"],
+                remaining: -categorySpendingMap["Other"],
+            });
         }
 
-        return res.status(200).json(new ApiResponse(200, { budgets }, "Yearly budget summary fetched successfully"));
+        if (!yearlyBudgetSummary.length) {
+            return res.status(404).json(new ApiResponse(404, null, `No budgets found for the year ${year}`));
+        }
+
+        return res.status(200).json(new ApiResponse(200, { year, budgets: yearlyBudgetSummary }, "Yearly budget summary fetched successfully"));
     } catch (error) {
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
+
+
+
 
 
 
