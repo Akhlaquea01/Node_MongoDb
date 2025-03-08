@@ -88,12 +88,18 @@ const getAllBudgets = async (req, res) => {
             return res.status(204).json(new ApiResponse(204, null, "No budgets found"));
         }
 
-        // Transform response to rename categoryId to category
-        const formattedBudgets = budgets.map(budget => ({
-            ...budget.toObject(),
-            category: budget.categoryId,
-            categoryId: undefined // Remove the original categoryId
-        }));
+        // Transform response: remove unwanted fields and handle "Other" category
+        const formattedBudgets = budgets.map(budget => {
+            const budgetObj = budget.toObject();
+            return {
+                _id: budgetObj._id,
+                userId: budgetObj.userId,
+                amount: budgetObj.amount,
+                recurring: budgetObj.recurring,
+                createdAt: budgetObj.createdAt,
+                category: budgetObj.categoryId ? budgetObj.categoryId : { _id: "679503070a5043480a8a9a26", name: "Others" }
+            };
+        });
 
         return res.status(200).json(new ApiResponse(200, { budgets: formattedBudgets }, "Budgets fetched successfully"));
     } catch (error) {
