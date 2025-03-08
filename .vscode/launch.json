@@ -4,15 +4,27 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Backend Script",
+            "name": "Launch TypeScript Backend",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/src/index.js",
+            "program": "${workspaceFolder}/src/index.ts",
             "envFile": "${workspaceFolder}/.env",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "runtimeExecutable": "node"
+            "runtimeArgs": [
+                "--loader",
+                "ts-node/esm",
+                "--env-file=.env"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "sourceMaps": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/dist/**/*.js",
+                "${workspaceFolder}/src/**/*.ts"
+            ]
         }
     ]
 }

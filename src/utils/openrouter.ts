@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-// import { parseResponse } from './ollamaUtility.js'
+// import { parseResponse } from './ollamaUtility'
 
 const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
@@ -30,7 +30,7 @@ export async function getChatResponse(model, messages) {
 
 
 /**
- * import {getChatResponse} from './utils/openrouter.js'
+ * import {getChatResponse} from './utils/openrouter'
  * async function runChat() {
     try {
         const response = await getChatResponse("deepseek/deepseek-r1:free", [

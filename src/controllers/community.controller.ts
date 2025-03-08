@@ -1,4 +1,4 @@
-// controllers/communityController.js
+// controllers/communityController
 import { Community } from "../models/community.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";

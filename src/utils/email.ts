@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { ApiResponse } from './ApiResponse.js';
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -15,9 +16,8 @@ export const sendEmail = async (mailOptions) => {
         const info = await transporter.sendMail(mailOptions);
         console.log('Email sent:', info.messageId);
     } catch (error) {
-      return res.status(500).json(
-        new ApiResponse(500, undefined, "Something went wrong", error)
-      );
+      return new ApiResponse(500, undefined, "Something went wrong", error)
+
     }
 };
 

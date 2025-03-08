@@ -49,7 +49,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
         obj["videoDetails"] = videoDetails[0];
 
         // Get total likes for videos, comments, and tweets
-        const likesDetails = {};
+        const likesDetails:any = {};
 
         const getLikesDetails = async (model, matchField, asField) => {
             const result = await model.aggregate([

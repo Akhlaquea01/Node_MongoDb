@@ -26,10 +26,10 @@ const uploadOnCloudinary = async (localFilePath, folder = '') => {
 };
 
 // Function to delete a file from Cloudinary by URL
-const deleteFromCloudinaryByUrl = async (fileUrl, folder = '') => {
+const deleteFromCloudinaryByUrl = async (fileUrl, folder:any = '') => {
     try {
         const publicId = fileUrl.split('/').slice(-1)[0].split('.')[0]; // Extract public ID from URL
-        const response = await cloudinary.uploader.destroy(publicId, { folder }); // Delete the file from Cloudinary
+        const response = await cloudinary.uploader.destroy(publicId); // Delete the file from Cloudinary
         return response.result === 'ok';
     } catch (error) {
         return false;
@@ -50,7 +50,7 @@ const getAllImagesFromCloudinary = async () => {
 };
 
 // Function to get all items from Cloudinary with options for folder name, directory path, and resource type
-const getAllItemsFromCloudinary = async (options = {}) => {
+const getAllItemsFromCloudinary = async (options:any = {}) => {
     try {
         let expression = '';
         if (options.folderName) {
@@ -95,8 +95,8 @@ const downloadFile = async (videoUrl, localFilePath) => {
         response.data.pipe(writer);
         console.log(response,'response');
         return new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
+            writer.on('finish', () => resolve(null));
+            writer.on('error', (err) => reject(err));
         });
     } catch (error) {
         console.error("Error downloading video:", error);
