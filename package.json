@@ -16,6 +16,7 @@
   "author": "Akhlaque Ahmad",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^0.6.1",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cloudinary": "^1.41.0",
