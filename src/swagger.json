@@ -27,9 +27,7 @@
     "/users/register": {
       "post": {
         "summary": "Register a new user",
-        "tags": [
-          "User"
-        ],
+        "tags": ["User"],
         "consumes": [
           "multipart/form-data"
         ],
@@ -97,9 +95,7 @@
     "/users/login": {
       "post": {
         "summary": "Login user",
-        "tags": [
-          "User"
-        ],
+        "tags": ["User"],
         "security": [],
         "parameters": [
           {
@@ -146,11 +142,9 @@
       }
     },
     "/users/logout": {
-      "post": {
+      "get": {
         "summary": "Logout user",
-        "tags": [
-          "User"
-        ],
+        "tags": ["User"],
         "security": [
           {
             "BearerAuth": []
@@ -172,9 +166,7 @@
     "/users/refresh-token": {
       "post": {
         "summary": "Refresh access token",
-        "tags": [
-          "User"
-        ],
+        "tags": ["User"],
         "parameters": [
           {
             "in": "body",
@@ -197,6 +189,72 @@
           },
           "401": {
             "description": "Invalid refresh token"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/change-password": {
+      "post": {
+        "summary": "Change current user's password",
+        "tags": ["User"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "oldPassword": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Current password"
+                },
+                "newPassword": {
+                  "type": "string",
+                  "required": true,
+                  "description": "New password"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Invalid old password"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/current-user": {
+      "get": {
+        "summary": "Get current user details",
+        "tags": ["User"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user details retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "500": {
             "description": "Internal Server Error"
@@ -306,68 +364,10 @@
     "/videos": {
       "get": {
         "summary": "Get all videos",
-        "tags": [
-          "Video"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "type": "integer",
-            "required": false,
-            "description": "Page number for pagination",
-            "default": 1
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "type": "integer",
-            "required": false,
-            "description": "Number of items per page",
-            "default": 10
-          },
-          {
-            "in": "query",
-            "name": "query",
-            "type": "string",
-            "required": false,
-            "description": "Filter for published videos"
-          },
-          {
-            "in": "query",
-            "name": "sortBy",
-            "type": "string",
-            "required": false,
-            "description": "Field to sort by"
-          },
-          {
-            "in": "query",
-            "name": "sortType",
-            "type": "string",
-            "required": false,
-            "description": "Sort direction (asc/desc)",
-            "enum": [
-              "asc",
-              "desc"
-            ]
-          },
-          {
-            "in": "query",
-            "name": "userId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the user whose videos to fetch"
-          }
-        ],
+        "tags": ["Video"],
         "responses": {
           "200": {
             "description": "Videos retrieved successfully"
-          },
-          "400": {
-            "description": "Invalid parameters"
-          },
-          "404": {
-            "description": "No videos found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -376,27 +376,11 @@
       },
       "post": {
         "summary": "Publish a new video",
-        "tags": [
-          "Video"
-        ],
+        "tags": ["Video"],
         "consumes": [
           "multipart/form-data"
         ],
         "parameters": [
-          {
-            "in": "formData",
-            "name": "title",
-            "type": "string",
-            "required": true,
-            "description": "Video title"
-          },
-          {
-            "in": "formData",
-            "name": "description",
-            "type": "string",
-            "required": true,
-            "description": "Video description"
-          },
           {
             "in": "formData",
             "name": "videoFile",
@@ -428,9 +412,7 @@
     "/videos/{videoId}": {
       "get": {
         "summary": "Get video by ID",
-        "tags": [
-          "Video"
-        ],
+        "tags": ["Video"],
         "parameters": [
           {
             "in": "path",
@@ -454,9 +436,7 @@
       },
       "patch": {
         "summary": "Update video details",
-        "tags": [
-          "Video"
-        ],
+        "tags": ["Video"],
         "consumes": [
           "multipart/form-data"
         ],
@@ -467,20 +447,6 @@
             "type": "string",
             "required": true,
             "description": "ID of the video"
-          },
-          {
-            "in": "formData",
-            "name": "title",
-            "type": "string",
-            "required": false,
-            "description": "New video title"
-          },
-          {
-            "in": "formData",
-            "name": "description",
-            "type": "string",
-            "required": false,
-            "description": "New video description"
           },
           {
             "in": "formData",
@@ -504,9 +470,7 @@
       },
       "delete": {
         "summary": "Delete video",
-        "tags": [
-          "Video"
-        ],
+        "tags": ["Video"],
         "parameters": [
           {
             "in": "path",
@@ -529,40 +493,10 @@
         }
       }
     },
-    "/videos/{videoId}/toggle-publish": {
-      "patch": {
-        "summary": "Toggle video publish status",
-        "tags": [
-          "Video"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "videoId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the video"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Video publish status toggled successfully"
-          },
-          "400": {
-            "description": "Video not found or not accessible"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/videos/{videoId}/download": {
+    "/videos/download/{videoId}": {
       "get": {
         "summary": "Download video",
-        "tags": [
-          "Video"
-        ],
+        "tags": ["Video"],
         "parameters": [
           {
             "in": "path",
@@ -585,12 +519,36 @@
         }
       }
     },
+    "/videos/toggle/publish/{videoId}": {
+      "patch": {
+        "summary": "Toggle video publish status",
+        "tags": ["Video"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "videoId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the video"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video publish status toggled successfully"
+          },
+          "400": {
+            "description": "Video not found or not accessible"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/tweets": {
       "post": {
         "summary": "Create a new tweet",
-        "tags": [
-          "Tweet"
-        ],
+        "tags": ["Tweet"],
         "parameters": [
           {
             "in": "body",
@@ -629,9 +587,7 @@
     "/tweets/user/{userId}": {
       "get": {
         "summary": "Get all tweets of a user",
-        "tags": [
-          "Tweet"
-        ],
+        "tags": ["Tweet"],
         "parameters": [
           {
             "in": "path",
@@ -657,9 +613,7 @@
     "/tweets/{tweetId}": {
       "patch": {
         "summary": "Update a tweet",
-        "tags": [
-          "Tweet"
-        ],
+        "tags": ["Tweet"],
         "parameters": [
           {
             "in": "path",
@@ -703,9 +657,7 @@
       },
       "delete": {
         "summary": "Delete a tweet",
-        "tags": [
-          "Tweet"
-        ],
+        "tags": ["Tweet"],
         "parameters": [
           {
             "in": "path",
@@ -729,11 +681,57 @@
       }
     },
     "/subscriptions/c/{channelId}": {
+      "get": {
+        "summary": "Get channels subscribed by a user",
+        "tags": ["Subscription"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the user to get subscribed channels for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscribed channels list retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "integer",
+                  "example": 200
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "subscriber": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "list of channel i subscribed found"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Channel ID does not exist"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
       "post": {
         "summary": "Toggle subscription to a channel",
-        "tags": [
-          "Subscription"
-        ],
+        "tags": ["Subscription"],
         "parameters": [
           {
             "in": "path",
@@ -745,7 +743,31 @@
         ],
         "responses": {
           "200": {
-            "description": "Subscription toggled successfully"
+            "description": "Subscription toggled successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "integer",
+                  "example": 200
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "subscriber": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Successfully subscribed to the channel"
+                }
+              }
+            }
           },
           "400": {
             "description": "Channel not found or operation failed"
@@ -759,9 +781,7 @@
     "/subscriptions/u/{subscriberId}": {
       "get": {
         "summary": "Get subscribers list of a channel",
-        "tags": [
-          "Subscription"
-        ],
+        "tags": ["Subscription"],
         "parameters": [
           {
             "in": "path",
@@ -773,7 +793,31 @@
         ],
         "responses": {
           "200": {
-            "description": "Subscribers list retrieved successfully"
+            "description": "Subscribers list retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "integer",
+                  "example": 200
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "channel": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "list of subscriber found"
+                }
+              }
+            }
           },
           "400": {
             "description": "Subscriber ID does not exist"
@@ -787,9 +831,7 @@
     "/subscriptions/c/{channelId}/subscribed-channels": {
       "get": {
         "summary": "Get channels subscribed by a user",
-        "tags": [
-          "Subscription"
-        ],
+        "tags": ["Subscription"],
         "parameters": [
           {
             "in": "path",
@@ -801,7 +843,31 @@
         ],
         "responses": {
           "200": {
-            "description": "Subscribed channels list retrieved successfully"
+            "description": "Subscribed channels list retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "integer",
+                  "example": 200
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "subscriber": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "list of channel i subscribed found"
+                }
+              }
+            }
           },
           "400": {
             "description": "Channel ID does not exist"
@@ -815,9 +881,7 @@
     "/playlist": {
       "post": {
         "summary": "Create a new playlist",
-        "tags": [
-          "Playlist"
-        ],
+        "tags": ["Playlist"],
         "parameters": [
           {
             "in": "body",
@@ -853,12 +917,170 @@
         }
       }
     },
+    "/playlist/{playlistId}": {
+      "get": {
+        "summary": "Get playlist by ID",
+        "tags": ["Playlist"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlistId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist retrieved successfully"
+          },
+          "400": {
+            "description": "Playlist ID is required or playlist not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update playlist",
+        "tags": ["Playlist"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlistId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the playlist"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "required": false,
+                  "description": "New playlist name"
+                },
+                "description": {
+                  "type": "string",
+                  "required": false,
+                  "description": "New playlist description"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist updated successfully"
+          },
+          "400": {
+            "description": "Playlist not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete playlist",
+        "tags": ["Playlist"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playlistId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist deleted successfully"
+          },
+          "400": {
+            "description": "Playlist not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/playlist/add/{videoId}/{playlistId}": {
+      "patch": {
+        "summary": "Add video to playlist",
+        "tags": ["Playlist"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "videoId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the video to add"
+          },
+          {
+            "in": "path",
+            "name": "playlistId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video added to playlist successfully"
+          },
+          "400": {
+            "description": "Video or playlist not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/playlist/remove/{videoId}/{playlistId}": {
+      "patch": {
+        "summary": "Remove video from playlist",
+        "tags": ["Playlist"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "videoId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the video to remove"
+          },
+          {
+            "in": "path",
+            "name": "playlistId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video removed from playlist successfully"
+          },
+          "400": {
+            "description": "Video or playlist not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/playlist/user/{userId}": {
       "get": {
         "summary": "Get all playlists of a user",
-        "tags": [
-          "Playlist"
-        ],
+        "tags": ["Playlist"],
         "parameters": [
           {
             "in": "path",
@@ -881,177 +1103,7 @@
         }
       }
     },
-    "/playlist/{playlistId}": {
-      "get": {
-        "summary": "Get playlist by ID",
-        "tags": [
-          "Playlist"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "playlistId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the playlist"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Playlist retrieved successfully"
-          },
-          "400": {
-            "description": "Playlist not found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update playlist details",
-        "tags": [
-          "Playlist"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "playlistId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the playlist"
-          },
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "required": true,
-                  "description": "New playlist name"
-                },
-                "description": {
-                  "type": "string",
-                  "required": true,
-                  "description": "New playlist description"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Playlist updated successfully"
-          },
-          "400": {
-            "description": "Playlist not found or unauthorized"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete playlist",
-        "tags": [
-          "Playlist"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "playlistId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the playlist"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Playlist deleted successfully"
-          },
-          "400": {
-            "description": "Playlist not found or unauthorized"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/playlist/add/{videoId}/{playlistId}": {
-      "patch": {
-        "summary": "Add video to playlist",
-        "tags": [
-          "Playlist"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "videoId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the video to add"
-          },
-          {
-            "in": "path",
-            "name": "playlistId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the playlist"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Video added to playlist successfully"
-          },
-          "400": {
-            "description": "Playlist or video not found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/playlist/remove/{videoId}/{playlistId}": {
-      "patch": {
-        "summary": "Remove video from playlist",
-        "tags": [
-          "Playlist"
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "videoId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the video to remove"
-          },
-          {
-            "in": "path",
-            "name": "playlistId",
-            "type": "string",
-            "required": true,
-            "description": "ID of the playlist"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Video removed from playlist successfully"
-          },
-          "400": {
-            "description": "Playlist or video not found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/likes/videos/{videoId}": {
+    "/likes/toggle/v/{videoId}": {
       "post": {
         "summary": "Toggle like on a video",
         "tags": ["Like"],
@@ -1077,7 +1129,7 @@
         }
       }
     },
-    "/likes/comments/{commentId}": {
+    "/likes/toggle/c/{commentId}": {
       "post": {
         "summary": "Toggle like on a comment",
         "tags": ["Like"],
@@ -1103,7 +1155,7 @@
         }
       }
     },
-    "/likes/tweets/{tweetId}": {
+    "/likes/toggle/t/{tweetId}": {
       "post": {
         "summary": "Toggle like on a tweet",
         "tags": ["Like"],
@@ -1418,7 +1470,7 @@
         }
       }
     },
-    "/comments/video/{videoId}": {
+    "/comments/{videoId}": {
       "get": {
         "summary": "Get all comments for a video",
         "tags": ["Comment"],
@@ -1429,22 +1481,6 @@
             "type": "string",
             "required": true,
             "description": "ID of the video"
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "type": "integer",
-            "required": false,
-            "description": "Page number for pagination",
-            "default": 1
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "type": "integer",
-            "required": false,
-            "description": "Number of items per page",
-            "default": 10
           }
         ],
         "responses": {
@@ -1504,7 +1540,7 @@
         }
       }
     },
-    "/comments/{commentId}": {
+    "/comments/c/{commentId}": {
       "patch": {
         "summary": "Update a comment",
         "tags": ["Comment"],
@@ -1574,7 +1610,7 @@
         }
       }
     },
-    "/categories": {
+    "/categories/getAll": {
       "get": {
         "summary": "Get all categories",
         "tags": ["Category"],
@@ -1615,7 +1651,9 @@
             "description": "Internal Server Error"
           }
         }
-      },
+      }
+    },
+    "/categories/create": {
       "post": {
         "summary": "Create a new category",
         "tags": ["Category"],
@@ -1665,7 +1703,7 @@
       }
     },
     "/categories/{categoryId}": {
-      "patch": {
+      "put": {
         "summary": "Update a category",
         "tags": ["Category"],
         "parameters": [
@@ -1739,7 +1777,7 @@
         }
       }
     },
-    "/budgets": {
+    "/budgets/getAll": {
       "get": {
         "summary": "Get all budgets for the current user",
         "tags": ["Budget"],
@@ -1804,7 +1842,9 @@
             "description": "Internal Server Error"
           }
         }
-      },
+      }
+    },
+    "/budgets/create": {
       "post": {
         "summary": "Create a new budget",
         "tags": ["Budget"],
@@ -1876,7 +1916,7 @@
       }
     },
     "/budgets/{budgetId}": {
-      "patch": {
+      "put": {
         "summary": "Update a budget",
         "tags": ["Budget"],
         "parameters": [
@@ -1972,7 +2012,7 @@
         }
       }
     },
-    "/budgets/monthly-summary": {
+    "/budgets/monthly": {
       "get": {
         "summary": "Get monthly budget summary",
         "tags": ["Budget"],
@@ -2056,7 +2096,7 @@
         }
       }
     },
-    "/budgets/yearly-summary": {
+    "/budgets/yearly": {
       "get": {
         "summary": "Get yearly budget summary",
         "tags": ["Budget"],
@@ -2080,60 +2120,7 @@
         }
       }
     },
-    "/bank/accounts": {
-      "get": {
-        "summary": "Get all bank accounts for the current user",
-        "tags": ["Bank"],
-        "responses": {
-          "200": {
-            "description": "Accounts retrieved successfully",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "accounts": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "_id": {
-                        "type": "string",
-                        "description": "Account ID"
-                      },
-                      "accountType": {
-                        "type": "string",
-                        "description": "Type of account"
-                      },
-                      "accountName": {
-                        "type": "string",
-                        "description": "Name of the account"
-                      },
-                      "accountNumber": {
-                        "type": "string",
-                        "description": "Account number"
-                      },
-                      "currency": {
-                        "type": "string",
-                        "description": "Account currency"
-                      },
-                      "balance": {
-                        "type": "number",
-                        "description": "Current balance"
-                      },
-                      "isDefault": {
-                        "type": "boolean",
-                        "description": "Whether this is the default account"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      },
+    "/bank/create": {
       "post": {
         "summary": "Create a new bank account",
         "tags": ["Bank"],
@@ -2194,8 +2181,8 @@
         }
       }
     },
-    "/bank/accounts/{accountId}": {
-      "patch": {
+    "/bank/{accountId}": {
+      "put": {
         "summary": "Update a bank account",
         "tags": ["Bank"],
         "parameters": [
@@ -2279,44 +2266,21 @@
         }
       }
     },
-    "/bank/transactions": {
+    "/bank/getAll": {
       "get": {
-        "summary": "Get all transactions",
+        "summary": "Get all bank accounts for the current user",
         "tags": ["Bank"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "accountId",
-            "type": "string",
-            "required": false,
-            "description": "Filter by account ID"
-          },
-          {
-            "in": "query",
-            "name": "startDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Filter by start date"
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Filter by end date"
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Transactions retrieved successfully"
+            "description": "Accounts retrieved successfully"
           },
           "500": {
             "description": "Internal Server Error"
           }
         }
-      },
+      }
+    },
+    "/bank/transaction": {
       "post": {
         "summary": "Create a new transaction",
         "tags": ["Bank"],
@@ -2391,9 +2355,21 @@
             "description": "Internal Server Error"
           }
         }
+      },
+      "get": {
+        "summary": "Get all transactions",
+        "tags": ["Bank"],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
       }
     },
-    "/bank/transactions/bulk": {
+    "/bank/transaction/multitxn": {
       "post": {
         "summary": "Create multiple transactions",
         "tags": ["Bank"],
@@ -2481,8 +2457,8 @@
         }
       }
     },
-    "/bank/transactions/{transactionId}": {
-      "patch": {
+    "/bank/transaction/{transactionId}": {
+      "put": {
         "summary": "Update a transaction",
         "tags": ["Bank"],
         "parameters": [
@@ -2587,28 +2563,10 @@
         }
       }
     },
-    "/bank/transactions/summary": {
+    "/bank/transaction/summary": {
       "get": {
         "summary": "Get transaction summary",
         "tags": ["Bank"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "startDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Start date for summary"
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "End date for summary"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Transaction summary retrieved successfully"
@@ -2619,7 +2577,21 @@
         }
       }
     },
-    "/bank/transactions/recurring": {
+    "/bank/transaction/incomeExpenseSummary": {
+      "get": {
+        "summary": "Get income and expense summary",
+        "tags": ["Bank"],
+        "responses": {
+          "200": {
+            "description": "Income and expense summary retrieved successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/bank/transaction/recurring": {
       "get": {
         "summary": "Get all recurring transactions",
         "tags": ["Bank"],
@@ -2631,30 +2603,159 @@
             "description": "Internal Server Error"
           }
         }
-      }
-    },
-    "/bank/transactions/expenses": {
-      "get": {
-        "summary": "Get all expenses",
+      },
+      "post": {
+        "summary": "Add a recurring transaction",
         "tags": ["Bank"],
         "parameters": [
           {
-            "in": "query",
-            "name": "startDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Start date for expenses"
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "End date for expenses"
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "accountId": {
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the account"
+                },
+                "transactionType": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Type of transaction (income/expense)"
+                },
+                "amount": {
+                  "type": "number",
+                  "required": true,
+                  "description": "Transaction amount"
+                },
+                "categoryId": {
+                  "type": "string",
+                  "required": true,
+                  "description": "ID of the category"
+                },
+                "description": {
+                  "type": "string",
+                  "required": false,
+                  "description": "Transaction description"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "required": false,
+                  "description": "Transaction tags"
+                },
+                "location": {
+                  "type": "object",
+                  "required": false,
+                  "description": "Transaction location"
+                },
+                "sharedWith": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "required": false,
+                  "description": "Users to share the transaction with"
+                }
+              }
+            }
           }
         ],
+        "responses": {
+          "201": {
+            "description": "Recurring transaction added successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/bank/transaction/recurring/{transactionId}": {
+      "put": {
+        "summary": "Update a recurring transaction",
+        "tags": ["Bank"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transactionId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the recurring transaction to update"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "transactionType": {
+                  "type": "string",
+                  "required": false,
+                  "description": "New transaction type"
+                },
+                "amount": {
+                  "type": "number",
+                  "required": false,
+                  "description": "New amount"
+                },
+                "categoryId": {
+                  "type": "string",
+                  "required": false,
+                  "description": "New category ID"
+                },
+                "description": {
+                  "type": "string",
+                  "required": false,
+                  "description": "New description"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "required": false,
+                  "description": "New tags"
+                },
+                "location": {
+                  "type": "object",
+                  "required": false,
+                  "description": "New location"
+                },
+                "sharedWith": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "required": false,
+                  "description": "New shared users"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recurring transaction updated successfully"
+          },
+          "404": {
+            "description": "Recurring transaction not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/bank/transaction/expense": {
+      "get": {
+        "summary": "Get all expenses",
+        "tags": ["Bank"],
         "responses": {
           "200": {
             "description": "Expenses retrieved successfully"
@@ -2665,28 +2766,10 @@
         }
       }
     },
-    "/bank/transactions/income": {
+    "/bank/transaction/income": {
       "get": {
         "summary": "Get all income transactions",
         "tags": ["Bank"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "startDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Start date for income"
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "End date for income"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Income transactions retrieved successfully"
@@ -2697,28 +2780,10 @@
         }
       }
     },
-    "/bank/transactions/investments": {
+    "/bank/transaction/investment": {
       "get": {
         "summary": "Get all investment transactions",
         "tags": ["Bank"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "startDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "Start date for investments"
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "type": "string",
-            "format": "date",
-            "required": false,
-            "description": "End date for investments"
-          }
-        ],
         "responses": {
           "200": {
             "description": "Investment transactions retrieved successfully"
