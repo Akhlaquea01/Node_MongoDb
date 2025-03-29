@@ -4,7 +4,8 @@ import cookieParser from "cookie-parser";
 import swaggerUi from 'swagger-ui-express';
 import { swaggerConfig } from './utils/swaggerConfig.js';
 import TelegramChatBot from './utils/telegramBot.js';
-
+import dotenv from 'dotenv';
+dotenv.config();
 const app = express();
 
 
