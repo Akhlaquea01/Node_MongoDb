@@ -11,7 +11,7 @@ const app = express();
 
 
 
-if (process.env.TELEGRAM_BOT_ENABLE) {
+if (process.env.TELEGRAM_BOT_ENABLE=='START') {
     const token = process.env.YOUR_TELEGRAM_BOT_TOKEN;
 
     // Create an instance of TelegramChatBot
