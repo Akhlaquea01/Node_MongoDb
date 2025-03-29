@@ -346,7 +346,7 @@ const getTransactions = async (req, res) => {
         const userId = req.user._id;
         const { startDate, endDate, transactionType, categoryId, accountId, minAmount, maxAmount, tags, isRecurring } = req.query;
 
-        let filter:any = { userId };
+        let filter: any = { userId };
 
         // Filter by date range
         if (startDate || endDate) {
@@ -535,7 +535,7 @@ const getExpenseByUser = async (req, res) => {
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
-        const query:any = {
+        const query: any = {
             userId,
             transactionType: "debit", // Filter only expenses (debits)
         };
@@ -579,7 +579,7 @@ const getIncomeByUser = async (req, res) => {
         const { startDate, endDate, categoryId } = req.query; // Optional filters for date range and category
 
         // Build the query
-        const query:any = {
+        const query: any = {
             userId,
             transactionType: "credit", // Filter only income (credits)
         };
@@ -618,6 +618,65 @@ const getIncomeByUser = async (req, res) => {
     }
 };
 
+const getIncomeExpenseSummary = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { filterType, startDate, endDate } = req.query;
+
+        // Validate filterType
+        if (!['daily', 'monthly', 'yearly'].includes(filterType)) {
+            return res.status(400).json(new ApiResponse(400, null, "Invalid filter type"));
+        }
+
+        // Build the query
+        const query = {
+            userId,
+            date: {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            },
+        };
+
+        // Fetch transactions
+        const transactions = await Transaction.find(query)
+            .populate("categoryId", "name") // Populate category details
+            .populate("accountId", "accountName") // Populate account details
+            .sort({ date: 1 });
+
+        if (!transactions.length) {
+            return res.status(404).json(new ApiResponse(404, null, "No transactions found"));
+        }
+
+        const groupedData = {};
+
+        transactions.forEach((transaction) => {
+            let key;
+            const date = new Date(transaction.date);
+
+            if (filterType === "daily") {
+                key = date.toISOString().split("T")[0];
+            } else if (filterType === "monthly") {
+                key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            } else if (filterType === "yearly") {
+                key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            }
+
+            if (!groupedData[key]) {
+                groupedData[key] = { date: key, income: 0, expense: 0 };
+            }
+
+            if (transaction.transactionType === "credit") {
+                groupedData[key].income += transaction.amount;
+            } else if (transaction.transactionType === "debit") {
+                groupedData[key].expense += transaction.amount;
+            }
+        });
+
+        return res.status(200).json(new ApiResponse(200, Object.values(groupedData), "Summary fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
+    }
+};
 
 const getInvestmentsByUser = async (req, res) => {
     try {
@@ -630,7 +689,7 @@ const getInvestmentsByUser = async (req, res) => {
         }
 
         // Build query filters
-        const filters:any = {
+        const filters: any = {
             userId: new mongoose.Types.ObjectId(userId),
         };
 
@@ -678,6 +737,6 @@ const getInvestmentsByUser = async (req, res) => {
 
 
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary
 
 };

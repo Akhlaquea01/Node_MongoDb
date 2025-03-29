@@ -1,7 +1,7 @@
 // Finance Tracker App
 import { Router } from 'express';
 import {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary
 } from "../controllers/bank.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -20,6 +20,7 @@ router.put("/transaction/:transactionId", updateTransaction);  // Update transac
 router.delete("/transaction/:transactionId", deleteTransaction);  // Delete transaction by ID
 router.get("/transaction", getTransactions);
 router.get("/transaction/summary", getTransactionSummary);
+router.get("/transaction/incomeExpenseSummary", getIncomeExpenseSummary);
 router.get("/transaction/recurring", getRecurringTransactions);
 router.post("/transaction/recurring", addRecurringTransaction);
 router.put("/transaction/recurring/:transactionId", updateRecurringTransaction);
