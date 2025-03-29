@@ -5,9 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node --env-file=.env src/index.ts",
-    "build": "tsc",
-    "start": "node --env-file=.env dist/index.js"
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=1024 tsc",
+    "start": "cross-env NODE_OPTIONS=--max-old-space-size=1024 node -r dotenv/config dist/index.js",
+    "dev": "node --env-file=.env dist/index.js"
   },
   "keywords": [
     "javascript",
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "cross-env": "^7.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }
