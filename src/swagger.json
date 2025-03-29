@@ -24,6 +24,186 @@
     }
   ],
   "paths": {
+    "/users/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": [
+          "User"
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "formData",
+            "name": "fullName",
+            "type": "string",
+            "required": true,
+            "description": "User's full name"
+          },
+          {
+            "in": "formData",
+            "name": "email",
+            "type": "string",
+            "required": true,
+            "description": "User's email address"
+          },
+          {
+            "in": "formData",
+            "name": "username",
+            "type": "string",
+            "required": true,
+            "description": "User's username"
+          },
+          {
+            "in": "formData",
+            "name": "password",
+            "type": "string",
+            "required": true,
+            "description": "User's password"
+          },
+          {
+            "in": "formData",
+            "name": "avatar",
+            "type": "file",
+            "required": true,
+            "description": "User's avatar image"
+          },
+          {
+            "in": "formData",
+            "name": "coverImage",
+            "type": "file",
+            "required": false,
+            "description": "User's cover image"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User registered successfully"
+          },
+          "400": {
+            "description": "Invalid input or missing required fields"
+          },
+          "409": {
+            "description": "User with email or username already exists"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/login": {
+      "post": {
+        "summary": "Login user",
+        "tags": [
+          "User"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "required":false,
+                  "description": "User's email address"
+                },
+                "username": {
+                  "type": "string",
+                  "description": "User's username"
+                },
+                "password": {
+                  "type": "string",
+                  "description": "User's password"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User logged in successfully"
+          },
+          "400": {
+            "description": "Username or email is required"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "404": {
+            "description": "User does not exist"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/logout": {
+      "post": {
+        "summary": "Logout user",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User logged out successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/refresh-token": {
+      "post": {
+        "summary": "Refresh access token",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "refreshToken": {
+                  "type": "string",
+                  "description": "Refresh token"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access token refreshed successfully"
+          },
+          "401": {
+            "description": "Invalid refresh token"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/community/create": {
       "post": {
         "summary": "Create a new community",
