@@ -129,6 +129,34 @@ const createTransaction = async (req, res) => {
             location,
             sharedWith
         });
+        const updatedAccount = await Account.findById(accountId);
+
+        if (!updatedAccount) {
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
+            );
+        }
+
+        // Calculate new balance
+        let newBalance = updatedAccount.balance;
+
+        if (transactionType === "debit") {
+            if (newBalance < amount) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
+                );
+            }
+            newBalance -= amount; // Deduct the amount
+        } else if (transactionType === "credit") {
+            newBalance += amount; // Add the amount
+        }
+
+        // Update the account balance in the database
+        const updatedAccountBalance = await Account.findByIdAndUpdate(
+            accountId,
+            { balance: newBalance },
+            { new: true }
+        );
 
         await newTransaction.save();
 
@@ -192,6 +220,34 @@ const createMultipleTransactions = async (req, res) => {
                 sharedWith
             });
 
+            const updatedAccount = await Account.findById(accountId);
+
+            if (!updatedAccount) {
+                return res.status(404).json(
+                    new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
+                );
+            }
+
+            // Calculate new balance
+            let newBalance = updatedAccount.balance;
+
+            if (transactionType === "debit") {
+                if (newBalance < amount) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
+                    );
+                }
+                newBalance -= amount; // Deduct the amount
+            } else if (transactionType === "credit") {
+                newBalance += amount; // Add the amount
+            }
+
+            // Update the account balance in the database
+            const updatedAccountBalance = await Account.findByIdAndUpdate(
+                accountId,
+                { balance: newBalance },
+                { new: true }
+            );
             await newTransaction.save();
             savedTransactions.push(newTransaction);
 
