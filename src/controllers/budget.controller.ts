@@ -24,9 +24,7 @@ const createBudget = asyncHandler(async (req, res) => {
 
         if (missingFields.length || invalidIds.length) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Invalid request", {
-                    message: `Missing fields: ${missingFields.join(", ") || "None"}, Invalid IDs: ${invalidIds.join(", ") || "None"}`
-                })
+                new ApiResponse(400, undefined, "Invalid request", new Error(`Missing fields: ${missingFields.join(", ") || "None"}, Invalid IDs: ${invalidIds.join(", ") || "None"}`))
             );
         }
         const newBudget = new Budget({
@@ -95,7 +93,7 @@ const getAllBudgets = async (req, res) => {
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Invalid user ID", { message: "Invalid user ID" })
+                new ApiResponse(400, undefined, "Invalid user ID", new Error("Invalid user ID"))
             );
         }
 

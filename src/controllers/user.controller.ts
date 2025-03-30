@@ -44,7 +44,7 @@ const registerUser = asyncHandler(async (req, res) => {
         )
     ) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "All fields are required", {})
+            new ApiResponse(400, undefined, "All fields are required", new Error("All fields are required"))
         );
     }
 
@@ -54,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (existedUser) {
         return res.status(409).json(
-            new ApiResponse(409, undefined, "User with email or username already exists", {})
+            new ApiResponse(409, undefined, "User with email or username already exists", new Error("User with email or username already exists"))
         );
     }
 
@@ -70,7 +70,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (!avatarLocalPath) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Avatar file is required", {})
+            new ApiResponse(400, undefined, "Avatar file is required", new Error("Avatar file is required"))
         );
     }
 
@@ -82,7 +82,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (!avatar) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Avatar file is required", {})
+            new ApiResponse(400, undefined, "Avatar file is required", new Error("Avatar file is required"))
         );
     }
 
@@ -101,7 +101,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (!createdUser) {
         return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong while registering the user", {})
+            new ApiResponse(500, undefined, "Something went wrong while registering the user", new Error("Something went wrong while registering the user"))
         );
     }
 
@@ -131,7 +131,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     if (!username && !email) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "username or email is required", {})
+            new ApiResponse(400, undefined, "username or email is required", new Error("username or email is required"))
         );
     }
 
@@ -141,7 +141,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     if (!user) {
         return res.status(404).json(
-            new ApiResponse(404, undefined, "User does not exist", {})
+            new ApiResponse(404, undefined, "User does not exist", new Error("User does not exist"))
         );
     }
 
@@ -149,14 +149,14 @@ const loginUser = asyncHandler(async (req, res) => {
 
     if (!isPasswordValid) {
         return res.status(401).json(
-            new ApiResponse(401, undefined, "Invalid user credentials", {})
+            new ApiResponse(401, undefined, "Invalid user credentials", new Error("Invalid user credentials"))
         );
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
     if (accessToken === null || refreshToken === null) { 
         return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", {})
+            new ApiResponse(500, undefined, "Something went wrong", new Error("Something went wrong"))
         );
     }
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
@@ -210,7 +210,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     if (!incomingRefreshToken) {
         return res.status(401).json(
-            new ApiResponse(401, undefined, "unauthorized request", {})
+            new ApiResponse(401, undefined, "unauthorized request", new Error("unauthorized request"))
         );
     }
 
@@ -224,13 +224,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         if (!user) {
             return res.status(401).json(
-                new ApiResponse(401, undefined, "Invalid refresh token", {})
+                new ApiResponse(401, undefined, "Invalid refresh token", new Error("Invalid refresh token"))
             );
         }
 
         if (incomingRefreshToken !== user?.refreshToken) {
             return res.status(401).json(
-                new ApiResponse(401, undefined, "Refresh token is expired or used", {})
+                new ApiResponse(401, undefined, "Refresh token is expired or used", new Error("Refresh token is expired or used"))
             );
         }
 
@@ -254,7 +254,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             );
     } catch (error) {
         return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
+            new ApiResponse(500, undefined, "Something went wrong", new Error("Something went wrong"))
         );
     }
 });
@@ -267,7 +267,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
     if (!isPasswordCorrect) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Invalid old password", {})
+            new ApiResponse(400, undefined, "Invalid old password", new Error("Invalid old password"))
         );
     }
 
@@ -294,7 +294,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
     if (!fullName || !email) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "All fields are required", {})
+            new ApiResponse(400, undefined, "All fields are required", new Error("All fields are required"))
         );
     }
 
@@ -320,7 +320,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     if (!avatarLocalPath) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Avatar file is missing", {})
+            new ApiResponse(400, undefined, "Avatar file is missing", new Error("Avatar file is missing"))
         );
     }
 
@@ -328,7 +328,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     if (!avatar.url) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Error while uploading on avatar", {})
+            new ApiResponse(400, undefined, "Error while uploading on avatar", new Error("Error while uploading on avatar"))
         );
     }
 
@@ -336,7 +336,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     if (!user) {
         return res.status(404).json(
-            new ApiResponse(404, undefined, "User not found", {})
+            new ApiResponse(404, undefined, "User not found", new Error("User not found"))
         );
     }
 
@@ -359,7 +359,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     if (!coverImageLocalPath) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Cover image file is missing", {})
+            new ApiResponse(400, undefined, "Cover image file is missing", new Error("Cover image file is missing"))
         );
     }
 
@@ -367,7 +367,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     if (!user) {
         return res.status(404).json(
-            new ApiResponse(404, undefined, "User not found", {})
+            new ApiResponse(404, undefined, "User not found", new Error("User not found"))
         );
     }
 
@@ -379,7 +379,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     if (!coverImage.url) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Error while uploading cover image", {})
+            new ApiResponse(400, undefined, "Error while uploading cover image", new Error("Error while uploading cover image"))
         );
     }
 
@@ -418,7 +418,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
     if (!username?.trim()) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "username is missing", {})
+            new ApiResponse(400, undefined, "username is missing", new Error("username is missing"))
         );
     }
 
@@ -477,7 +477,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
     if (!channel?.length) {
         return res.status(404).json(
-            new ApiResponse(404, undefined, "channel does not exists", {})
+            new ApiResponse(404, undefined, "channel does not exists", new Error("channel does not exists"))
         );
     }
 

@@ -62,9 +62,7 @@ const updateAccount = asyncHandler(async (req, res) => {
 
         if (!updatedAccount) {
             return res.status(404).json(
-                new ApiResponse(404, undefined, "Account not found", {
-                    message: `Account not found with accountId:${accountId}`
-                })
+                new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
             );
         }
         return res.status(200).json(
@@ -86,7 +84,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
         if (!deletedAccount) {
             return res.status(404).json(
-                new ApiResponse(404, undefined, "Account not found", { message: "Account not found" })
+                new ApiResponse(404, undefined, "Account not found", new Error("Account not found"))
             );
         }
         return res.status(200).json(
@@ -174,7 +172,7 @@ const createMultipleTransactions = async (req, res) => {
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
         return res.status(400).json(
-            new ApiResponse(400, undefined, "Invalid input", { message: "Transaction Array is requried" })
+            new ApiResponse(400, undefined, "Invalid input", new Error("Transaction Array is required"))
         );
     }
 
@@ -252,7 +250,7 @@ const updateTransaction = async (req, res) => {
 
         if (!oldTransaction) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Transaction not found", { message: "Transaction with the given ID does not exist" })
+                new ApiResponse(400, undefined, "Transaction not found", new Error("Transaction with the given ID does not exist"))
             );
         }
 
@@ -329,7 +327,7 @@ const deleteTransaction = async (req, res) => {
 
         if (!deletedTransaction) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Transaction not found", { message: "Transaction with the given ID does not exist" })
+                new ApiResponse(400, undefined, "Transaction not found", new Error("Transaction with the given ID does not exist"))
             );
         }
 

@@ -15,7 +15,7 @@ const createCategory = asyncHandler(async (req, res) => {
         const existingCategory = await Category.findOne({ name, userId });
         if (existingCategory) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Category with this name already exists for the user.", { message: "Category with this name already exists for the user." })
+                new ApiResponse(400, undefined, "Category with this name already exists for the user.", new Error("Category with this name already exists for the user."))
             );
         }
 
@@ -70,7 +70,7 @@ const updateCategory = asyncHandler(async (req, res) => {
         const category = await Category.findById(categoryId);
         if (!category) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Category not found.", { message: "Category not found." })
+                new ApiResponse(400, undefined, "Category not found.", new Error("Category not found."))
             );
         }
 
@@ -79,7 +79,7 @@ const updateCategory = asyncHandler(async (req, res) => {
             const parentCategoryExists = await Category.findById(parentCategory);
             if (!parentCategoryExists) {
                 return res.status(400).json(
-                    new ApiResponse(400, undefined, "Parent category does not exist.", { message: "Parent category does not exist." })
+                    new ApiResponse(400, undefined, "Parent category does not exist.", new Error("Parent category does not exist."))
                 );
             }
         }
@@ -108,7 +108,7 @@ const deleteCategory = asyncHandler(async (req, res) => {
 
         if (!deletedCategory) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Category not found.", { message: "Category not found." })
+                new ApiResponse(400, undefined, "Category not found.", new Error("Category not found."))
             );
         }
 

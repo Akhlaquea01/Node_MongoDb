@@ -1,13 +1,22 @@
-class ApiError extends Error {
+interface ApiErrorResponse {
     statusCode: number;
-    data: any;
+    message: string;
+    data: unknown | null;
     success: boolean;
-    errors: any[];
+    errors: unknown[];
+}
+
+class ApiError extends Error implements ApiErrorResponse {
+    public readonly statusCode: number;
+    public readonly data: unknown | null;
+    public readonly success: boolean;
+    public readonly errors: unknown[];
+
     constructor(
-        statusCode,
-        message = "Something went wrong",
-        errors = [],
-        stack = ""
+        statusCode: number,
+        message: string = "Something went wrong",
+        errors: unknown[] = [],
+        stack: string = ""
     ) {
         super(message);
         this.statusCode = statusCode;
@@ -21,8 +30,17 @@ class ApiError extends Error {
         } else {
             Error.captureStackTrace(this, this.constructor);
         }
+    }
 
+    public toJSON(): ApiErrorResponse {
+        return {
+            statusCode: this.statusCode,
+            message: this.message,
+            data: this.data,
+            success: this.success,
+            errors: this.errors
+        };
     }
 }
 
-export { ApiError };
+export { ApiError, ApiErrorResponse };

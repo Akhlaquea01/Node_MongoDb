@@ -10,7 +10,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
         // console.log(token);
         if (!token) {
             return res.status(401).json(
-                new ApiResponse(401, undefined, "Invalid access token", {})
+                new ApiResponse(401, undefined, "Invalid access token", new Error("Invalid access token"))
             );
         }
 
@@ -20,7 +20,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 
         if (!user) {
             return res.status(401).json(
-                new ApiResponse(401, undefined, "Invalid access token", {})
+                new ApiResponse(401, undefined, "Invalid access token", new Error("Invalid access token"))
             );
         }
 
@@ -28,7 +28,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
         next();
     } catch (error) {
         return res.status(401).json(
-            new ApiResponse(401, undefined, "Invalid access token", error)
+            new ApiResponse(401, undefined, "Invalid access token", new Error("Invalid access token"))
         );
     }
 
