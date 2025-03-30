@@ -172,7 +172,7 @@ const createTransaction = async (req, res) => {
             await budget.save();
         } else {
             const budget = await Budget.findOne({
-                type:"predefined",
+                type: "predefined",
                 name: "Others"
             });
             if (budget) {
@@ -435,9 +435,12 @@ const getTransactions = async (req, res) => {
             filter.isRecurring = isRecurring === "true";
         }
 
-        const transactions = await Transaction.find(filter).populate("accountId categoryId");
-
-        return res.status(200).json(new ApiResponse(200, { transactions }, "Transactions fetched successfully"));
+        const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });;
+        const result = {
+            transactions,
+            totalTxn: transactions.length
+        }
+        return res.status(200).json(new ApiResponse(200, result, "Transactions fetched successfully"));
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
@@ -763,11 +766,11 @@ const getIncomeExpenseSummary = async (req, res) => {
             }
 
             if (!groupedData[key]) {
-                groupedData[key] = { 
-                    date: key, 
-                    income: 0, 
+                groupedData[key] = {
+                    date: key,
+                    income: 0,
                     expense: 0,
-                    transactions: [] 
+                    transactions: []
                 };
             }
 
