@@ -103,7 +103,11 @@ const getAllBudgets = async (req, res) => {
         if (!budgets.length) {
             return res.status(204).json(new ApiResponse(204, null, "No budgets found"));
         }
-
+        let otherBudget = null;
+        if (userId != '6792a79a93a45d02c5016fb7') {
+            otherBudget = await Budget.find({ userId: new mongoose.Types.ObjectId('6792a79a93a45d02c5016fb7'), name: 'Others' })
+                .populate("categoryId", "name");
+        }
         // Transform response: remove unwanted fields and handle "Other" category
         const formattedBudgets = budgets.map(budget => {
             const budgetObj = budget.toObject();
@@ -113,11 +117,18 @@ const getAllBudgets = async (req, res) => {
                 amount: budgetObj.amount,
                 recurring: budgetObj.recurring,
                 createdAt: budgetObj.createdAt,
-                category: budgetObj.categoryId ? budgetObj.categoryId : { _id: "679503070a5043480a8a9a26", name: "Others" }
+                name: budgetObj.name ?? budgetObj.categoryId.name,
+                category: budgetObj.categoryId ? budgetObj.categoryId : otherBudget.categoryId
             };
         });
-
-        return res.status(200).json(new ApiResponse(200, { budgets: formattedBudgets }, "Budgets fetched successfully"));
+        if (otherBudget) {
+            formattedBudgets.push(otherBudget[0].toObject());
+        }
+        const result = {
+            budgets: formattedBudgets,
+            totalBudgetCount: formattedBudgets.length
+        };
+        return res.status(200).json(new ApiResponse(200, result, "Budgets fetched successfully"));
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
@@ -205,8 +216,13 @@ const getMonthlyBudgetSummary = async (req, res) => {
         if (!budgets.length) {
             return res.status(404).json(new ApiResponse(404, null, `No budgets found for ${month}/${year}`));
         }
-
-        return res.status(200).json(new ApiResponse(200, { month, year, budgets }, "Monthly budget summary fetched successfully"));
+        const result = {
+            month,
+            year,
+            totalBudgets: budgets.length || 0,
+            budgets
+        }
+        return res.status(200).json(new ApiResponse(200, result, "Monthly budget summary fetched successfully"));
     } catch (error) {
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }

@@ -1,7 +1,6 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Account, Transaction } from "../models/bank.model.js";
-import { Category } from "../models/category.model.js";
 import { Budget } from "../models/budget.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -133,13 +132,10 @@ const createTransaction = async (req, res) => {
 
         await newTransaction.save();
 
-        // Find the corresponding budget for the category in the current date range
-        const currentDate = new Date();
+        // Find the corresponding budget for the category
         const budget = await Budget.findOne({
             userId,
-            categoryId,
-            startDate: { $lte: currentDate },
-            endDate: { $gte: currentDate }
+            categoryId
         });
 
         // If a budget exists, update the spent amount
@@ -148,10 +144,8 @@ const createTransaction = async (req, res) => {
             await budget.save();
         } else {
             const budget = await Budget.findOne({
-                userId,
-                categoryId: "679503070a5043480a8a9a26",//other category
-                startDate: { $lte: currentDate },
-                endDate: { $gte: currentDate }
+                type:"predefined",
+                name: "Others"
             });
             if (budget) {
                 budget.spent += amount;
