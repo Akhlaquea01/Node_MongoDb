@@ -2579,11 +2579,128 @@
     },
     "/bank/transaction/incomeExpenseSummary": {
       "get": {
-        "summary": "Get income and expense summary",
-        "tags": ["Bank"],
+        "summary": "Get income and expense summary based on filter type",
+        "tags": ["Transaction"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filterType",
+            "type": "string",
+            "required": true,
+            "enum": ["daily", "monthly", "yearly"],
+            "description": "Type of filter to apply"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "type": "string",
+            "required": false,
+            "description": "Date in DD/MM/YYYY format (required for daily filter)"
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "type": "integer",
+            "required": false,
+            "description": "Month number (1-12) (required for monthly filter)"
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "type": "integer",
+            "required": false,
+            "description": "Year (required for monthly and yearly filters)"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Income and expense summary retrieved successfully"
+            "description": "Summary fetched successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "integer",
+                  "example": 200
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string",
+                        "description": "Date in format YYYY-MM-DD (daily), YYYY-MM (monthly), or YYYY (yearly)"
+                      },
+                      "income": {
+                        "type": "number",
+                        "description": "Total income for the period"
+                      },
+                      "expense": {
+                        "type": "number",
+                        "description": "Total expense for the period"
+                      },
+                      "transactions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "Transaction ID"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": ["credit", "debit"],
+                              "description": "Transaction type"
+                            },
+                            "amount": {
+                              "type": "number",
+                              "description": "Transaction amount"
+                            },
+                            "category": {
+                              "type": "string",
+                              "description": "Transaction category name"
+                            },
+                            "account": {
+                              "type": "string",
+                              "description": "Account name"
+                            },
+                            "date": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "Transaction date"
+                            },
+                            "description": {
+                              "type": "string",
+                              "description": "Transaction description"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Summary fetched successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter type or missing required parameters"
+          },
+          "404": {
+            "description": "No transactions found for the specified period"
           },
           "500": {
             "description": "Internal Server Error"
