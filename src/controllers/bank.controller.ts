@@ -429,16 +429,12 @@ const getTransactionSummary = async (req, res) => {
                         $sum: {
                             $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0]
                         }
-                    },
-                    netAmount: {
-                        $sum: {
-                            $cond: [
-                                { $eq: ["$transactionType", "credit"] },
-                                "$amount",
-                                { $multiply: ["$amount", -1] }
-                            ]
-                        }
                     }
+                }
+            },
+            {
+                $addFields: {
+                    netAmount: { $subtract: ["$totalIncome", "$totalExpense"] }
                 }
             }
         ]);

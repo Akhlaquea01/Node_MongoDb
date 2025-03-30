@@ -19,6 +19,9 @@ if (process.env.TELEGRAM_BOT_ENABLE=='START') {
 
     // Start listening for any kind of message
     bot.handleMessage();
+
+    // start listening for command
+    bot.handleSummaryCommand();
 }
 
 app.use(cors({

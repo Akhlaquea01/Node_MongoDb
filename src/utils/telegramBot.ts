@@ -9,10 +9,14 @@ class TelegramChatBot {
 
     // Method to handle '/summary' command
     handleSummaryCommand() {
-        this.bot.onText(/\/summary (.+)/, (msg, match) => {
+        this.bot.onText(/\/summary(?: (.+))?/, async (msg, match) => {
             const chatId = msg.chat.id;
-            const resp = match[1]; // the captured "whatever"
-            this.bot.sendMessage(chatId, resp);
+            const resp = match[1] ? match[1] : "No summary provided.";
+            try {
+                await this.bot.sendMessage(chatId, resp);
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
         });
     }
 
