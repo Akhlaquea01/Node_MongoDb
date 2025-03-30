@@ -618,51 +618,113 @@ const getIncomeByUser = async (req, res) => {
     }
 };
 
+interface GroupedData {
+    date: string;
+    income: number;
+    expense: number;
+    transactions: Array<{
+        id: string;
+        type: string;
+        amount: number;
+        category: string;
+        account: string;
+        date: Date;
+        description: string;
+    }>;
+}
+
 const getIncomeExpenseSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { filterType, startDate, endDate } = req.query;
+        const { filterType, date, month, year } = req.query;
 
         // Validate filterType
         if (!['daily', 'monthly', 'yearly'].includes(filterType)) {
             return res.status(400).json(new ApiResponse(400, null, "Invalid filter type"));
         }
 
+        let startDate, endDate;
+
+        // Set date range based on filterType
+        switch (filterType) {
+            case 'daily':
+                if (!date) {
+                    return res.status(400).json(new ApiResponse(400, null, "Date is required for daily filter"));
+                }
+                // Parse date in DD/MM/YYYY format
+                const [day, parsedMonth, parsedYear] = date.split('/').map(Number);
+                startDate = new Date(parsedYear, parsedMonth - 1, day);
+                endDate = new Date(parsedYear, parsedMonth - 1, day, 23, 59, 59);
+                break;
+
+            case 'monthly':
+                if (!month || !year) {
+                    return res.status(400).json(new ApiResponse(400, null, "Month and year are required for monthly filter"));
+                }
+                // For monthly, we need to set the date to the first day of the month at 00:00:00
+                startDate = new Date(Number(year), Number(month) - 1, 1);
+                // For the end date, we need to set it to the last day of the month at 23:59:59
+                endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+                break;
+
+            case 'yearly':
+                if (!year) {
+                    return res.status(400).json(new ApiResponse(400, null, "Year is required for yearly filter"));
+                }
+                // For yearly, we need to set the date to January 1st at 00:00:00
+                startDate = new Date(Number(year), 0, 1);
+                // For the end date, we need to set it to December 31st at 23:59:59
+                endDate = new Date(Number(year), 11, 31, 23, 59, 59);
+                break;
+        }
+
+        // Validate dates
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json(new ApiResponse(400, null, "Invalid date format"));
+        }
+
         // Build the query
         const query = {
-            userId,
+            userId: new mongoose.Types.ObjectId(userId),
             date: {
-                $gte: new Date(startDate),
-                $lte: new Date(endDate),
+                $gte: startDate,
+                $lte: endDate,
             },
         };
 
         // Fetch transactions
         const transactions = await Transaction.find(query)
-            .populate("categoryId", "name") // Populate category details
-            .populate("accountId", "accountName") // Populate account details
+            .populate("categoryId", "name")
+            .populate("accountId", "accountName")
             .sort({ date: 1 });
 
         if (!transactions.length) {
             return res.status(404).json(new ApiResponse(404, null, "No transactions found"));
         }
 
-        const groupedData = {};
+        const groupedData: Record<string, GroupedData> = {};
 
         transactions.forEach((transaction) => {
             let key;
-            const date = new Date(transaction.date);
+            const transactionDate = new Date(transaction.date);
 
             if (filterType === "daily") {
-                key = date.toISOString().split("T")[0];
+                key = transactionDate.toISOString().split("T")[0];
             } else if (filterType === "monthly") {
-                key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                // For monthly, use YYYY-MM format
+                key = `${transactionDate.getFullYear()}-${(transactionDate.getMonth() + 1).toString().padStart(2, '0')}`;
             } else if (filterType === "yearly") {
-                key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                // For yearly, just use the year
+                key = transactionDate.getFullYear().toString();
             }
 
             if (!groupedData[key]) {
-                groupedData[key] = { date: key, income: 0, expense: 0 };
+                groupedData[key] = { 
+                    date: key, 
+                    income: 0, 
+                    expense: 0,
+                    transactions: [] 
+                };
             }
 
             if (transaction.transactionType === "credit") {
@@ -670,10 +732,27 @@ const getIncomeExpenseSummary = async (req, res) => {
             } else if (transaction.transactionType === "debit") {
                 groupedData[key].expense += transaction.amount;
             }
+
+            // Add transaction details to the group
+            groupedData[key].transactions.push({
+                id: transaction._id,
+                type: transaction.transactionType,
+                amount: transaction.amount,
+                category: transaction.categoryId?.name || "Uncategorized",
+                account: transaction.accountId?.accountName || "Unknown",
+                date: transaction.date,
+                description: transaction.description
+            });
         });
 
-        return res.status(200).json(new ApiResponse(200, Object.values(groupedData), "Summary fetched successfully"));
+        // Convert groupedData to array and sort by date
+        const result = Object.values(groupedData).sort((a: GroupedData, b: GroupedData) => {
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+        });
+
+        return res.status(200).json(new ApiResponse(200, result, "Summary fetched successfully"));
     } catch (error) {
+        console.error("Error in getIncomeExpenseSummary:", error);
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
