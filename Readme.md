@@ -56,3 +56,6 @@
 
 13. **swagger-ui-express** (5.0.0): 
     - swagger-ui-express provides middleware for Express.js applications to serve Swagger UI.Swagger UI is a user-friendly interface that allows developers and consumers to interact with the API documentation. It provides features such as endpoint exploration, request and response examples, and API testing directly from the browser. 
+
+14. **npm i leaflet** (1.9.4): 
+   - Leaflet is the leading open-source JavaScript library for mobile-friendly interactive maps. Weighing just about 39 KB of gzipped JS plus 4 KB of gzipped CSS code, it has all the mapping features most developers ever need.
