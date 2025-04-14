@@ -2,6 +2,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Budget } from "../models/budget.model.js";
 import { Transaction } from "../models/bank.model.js";
+import { Category } from "../models/category.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
@@ -27,6 +28,34 @@ const createBudget = asyncHandler(async (req, res) => {
                 new ApiResponse(400, undefined, "Invalid request", new Error(`Missing fields: ${missingFields.join(", ") || "None"}, Invalid IDs: ${invalidIds.join(", ") || "None"}`))
             );
         }
+
+        // Validate date range
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (start >= end) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Invalid date range", new Error("Start date must be before end date"))
+            );
+        }
+
+        // Check for overlapping budgets in the same date range
+        const overlappingBudget = await Budget.findOne({
+            userId,
+            categoryId,
+            $or: [
+                {
+                    startDate: { $lte: end },
+                    endDate: { $gte: start }
+                }
+            ]
+        });
+
+        if (overlappingBudget) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Budget overlap", new Error("A budget already exists for this category in the specified date range"))
+            );
+        }
+
         const newBudget = new Budget({
             userId,
             name,
@@ -52,6 +81,42 @@ const updateBudget = async (req, res) => {
     try {
         const { budgetId } = req.params;
         const updatedData = req.body;
+
+        // If date range is being updated, validate it
+        if (updatedData.startDate || updatedData.endDate) {
+            const currentBudget = await Budget.findById(budgetId);
+            if (!currentBudget) {
+                return res.status(404).json(new ApiResponse(404, null, "Budget not found"));
+            }
+
+            const start = new Date(updatedData.startDate || currentBudget.startDate);
+            const end = new Date(updatedData.endDate || currentBudget.endDate);
+
+            if (start >= end) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Invalid date range", new Error("Start date must be before end date"))
+                );
+            }
+
+            // Check for overlapping budgets excluding the current one
+            const overlappingBudget = await Budget.findOne({
+                _id: { $ne: budgetId },
+                userId: currentBudget.userId,
+                categoryId: currentBudget.categoryId,
+                $or: [
+                    {
+                        startDate: { $lte: end },
+                        endDate: { $gte: start }
+                    }
+                ]
+            });
+
+            if (overlappingBudget) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Budget overlap", new Error("A budget already exists for this category in the specified date range"))
+                );
+            }
+        }
 
         const updatedBudget = await Budget.findByIdAndUpdate(budgetId, updatedData, { new: true });
 
@@ -101,7 +166,7 @@ const getAllBudgets = async (req, res) => {
             .populate("categoryId", "name");
 
         if (!budgets.length) {
-            return res.status(204).json(new ApiResponse(204, null, "No budgets found"));
+            return res.status(200).json(new ApiResponse(200, { budgets: [], totalBudgetCount: 0 }, "No budgets found"));
         }
         let otherBudget = null;
         if (userId != '6792a79a93a45d02c5016fb7') {
@@ -117,6 +182,8 @@ const getAllBudgets = async (req, res) => {
                 amount: budgetObj.amount,
                 recurring: budgetObj.recurring,
                 createdAt: budgetObj.createdAt,
+                startDate: budgetObj.startDate,
+                endDate: budgetObj.endDate,
                 name: budgetObj.name ?? budgetObj.categoryId.name,
                 category: budgetObj.categoryId ? budgetObj.categoryId : otherBudget.categoryId
             };
@@ -136,207 +203,257 @@ const getAllBudgets = async (req, res) => {
     }
 };
 
+// Helper function to get the most recent budget for a category
+const getMostRecentBudgetForCategory = async (userId, categoryId, date) => {
+    // First try to find a budget that covers the date
+    let budget = await Budget.findOne({
+        userId,
+        categoryId,
+        startDate: { $lte: date },
+        endDate: { $gte: date }
+    }).populate('categoryId', 'name');
+
+    // If no budget covers the date, find the most recent one before the date
+    if (!budget) {
+        budget = await Budget.findOne({
+            userId,
+            categoryId,
+            endDate: { $lt: date }
+        }).sort({ endDate: -1 }).populate('categoryId', 'name');
+    }
+
+    // If still no budget, find the earliest one after the date
+    if (!budget) {
+        budget = await Budget.findOne({
+            userId,
+            categoryId,
+            startDate: { $gt: date }
+        }).sort({ startDate: 1 }).populate('categoryId', 'name');
+    }
+
+    return budget;
+};
+
 const getMonthlyBudgetSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        let { month, year } = req.query;
+        const { month, year } = req.query;
 
-        // Default to current month and year if not provided
+        // Parse month and year, defaulting to current month if not provided
         const currentDate = new Date();
-        month = month ? parseInt(month) : currentDate.getMonth() + 1;
-        year = year ? parseInt(year) : currentDate.getFullYear();
+        const queryMonth = month ? parseInt(month, 10) - 1 : currentDate.getMonth(); // Months are 0-based
+        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
 
-        const startDate = new Date(year, month - 1, 1, 0, 0, 0);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
+        // Calculate the start and end dates for the specified month
+        const startDate = new Date(queryYear, queryMonth, 1);
+        const endDate = new Date(queryYear, queryMonth + 1, 0); // Last day of the month
 
-        const budgets = await Budget.aggregate([
-            {
-                $match: { userId: new mongoose.Types.ObjectId(userId) },
-            },
-            {
-                $lookup: {
-                    from: "transactions",
-                    let: { budgetId: "$_id", category: "$categoryId" },
-                    pipeline: [
-                        {
-                            $match: {
-                                userId: new mongoose.Types.ObjectId(userId),
-                                date: { $gte: startDate, $lte: endDate },
-                                $expr: {
-                                    $or: [
-                                        { $eq: ["$budgetId", "$$budgetId"] }, // Match by budgetId
-                                        { $eq: ["$categoryId", "$$category"] }, // Fallback to categoryId
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: "$budgetId", // Group by budgetId
-                                totalSpent: { $sum: "$amount" },
-                            },
-                        },
-                    ],
-                    as: "transactions",
-                },
-            },
-            {
-                $lookup: {
-                    from: "categories",
-                    localField: "categoryId",
-                    foreignField: "_id",
-                    as: "categoryDetails",
-                },
-            },
-            {
-                $unwind: {
-                    path: "$categoryDetails",
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
-            {
-                $project: {
-                    _id: "$_id", // Ensure correct budgetId in response
-                    budgetId: "$_id",
-                    categoryId: 1,
-                    categoryName: { $ifNull: ["$categoryDetails.name", "Others"] },
-                    monthlyBudget: "$amount",
-                    spent: {
-                        $ifNull: [{ $arrayElemAt: ["$transactions.totalSpent", 0] }, 0],
-                    },
-                },
-            },
-            {
-                $addFields: {
-                    remaining: { $subtract: ["$monthlyBudget", "$spent"] },
-                },
-            },
-        ]);
+        // Get all transactions for the month
+        const transactions = await Transaction.find({
+            userId,
+            date: { $gte: startDate, $lte: endDate },
+            transactionType: "debit" // Only consider debit transactions for budget tracking
+        });
 
-        if (!budgets.length) {
-            return res.status(404).json(new ApiResponse(404, null, `No budgets found for ${month}/${year}`));
+        // Group transactions by categoryId
+        const categoryTransactions: Record<string, number> = {};
+        transactions.forEach(transaction => {
+            if (transaction.categoryId) {
+                const categoryIdStr = transaction.categoryId.toString();
+                if (!categoryTransactions[categoryIdStr]) {
+                    categoryTransactions[categoryIdStr] = 0;
+                }
+                categoryTransactions[categoryIdStr] += transaction.amount;
+            }
+        });
+
+        // Get all budgets for the user with populated category information
+        const budgets = await Budget.find({ userId }).populate('categoryId', 'name');
+
+        // Create a map of categoryId to budget
+        const budgetMap: Record<string, any> = {};
+        budgets.forEach(budget => {
+            budgetMap[budget.categoryId._id.toString()] = budget;
+        });
+
+        // Prepare the response
+        const budgetSummaries = [];
+        let totalBudgets = 0;
+
+        // Process each category that has transactions
+        for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
+            let budget = budgetMap[categoryId];
+            
+            // If no budget found for this category, try to find the most appropriate one
+            if (!budget) {
+                budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
+                if (budget) {
+                    // Populate the category information for the budget
+                    await budget.populate('categoryId', 'name');
+                }
+            }
+            
+            if (budget) {
+                totalBudgets++;
+                budgetSummaries.push({
+                    _id: budget._id,
+                    budgetId: budget._id,
+                    categoryId: budget.categoryId._id,
+                    categoryName: budget.categoryId.name,
+                    monthlyBudget: budget.amount,
+                    spent: spent,
+                    remaining: budget.amount - spent
+                });
+            }
         }
-        const result = {
-            month,
-            year,
-            totalBudgets: budgets.length || 0,
-            budgets
+
+        // Add budgets that don't have transactions yet
+        for (const [categoryId, budget] of Object.entries(budgetMap)) {
+            // Skip if we already processed this category
+            if (categoryTransactions[categoryId]) continue;
+            
+            // Check if this budget covers the requested month
+            const budgetStartDate = new Date(budget.startDate);
+            const budgetEndDate = new Date(budget.endDate);
+            
+            if (budgetStartDate <= endDate && budgetEndDate >= startDate) {
+                totalBudgets++;
+                budgetSummaries.push({
+                    _id: budget._id,
+                    budgetId: budget._id,
+                    categoryId: budget.categoryId._id,
+                    categoryName: budget.categoryId.name,
+                    monthlyBudget: budget.amount,
+                    spent: 0,
+                    remaining: budget.amount
+                });
+            }
         }
-        return res.status(200).json(new ApiResponse(200, result, "Monthly budget summary fetched successfully"));
+
+        return res.status(200).json(
+            new ApiResponse(200, {
+                month: queryMonth + 1, // Convert back to 1-based month
+                year: queryYear,
+                totalBudgets,
+                budgets: budgetSummaries
+            }, "Monthly budget summary fetched successfully")
+        );
     } catch (error) {
-        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
 const getYearlyBudgetSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        let { year } = req.query;
+        const { year } = req.query;
 
-        // Default to current year if not provided
-        const currentYear = new Date().getFullYear();
-        year = year ? parseInt(year) : currentYear;
+        // Parse year, defaulting to current year if not provided
+        const currentDate = new Date();
+        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
 
-        const startDate = new Date(year, 0, 1, 0, 0, 0); // First day of the year
-        const endDate = new Date(year, 11, 31, 23, 59, 59); // Last day of the year
+        // Calculate the start and end dates for the specified year
+        const startDate = new Date(queryYear, 0, 1); // January 1st
+        const endDate = new Date(queryYear, 11, 31); // December 31st
 
-        // Fetch all transactions for the given year
-        const transactions = await Transaction.aggregate([
-            {
-                $match: {
-                    userId: new mongoose.Types.ObjectId(userId),
-                    date: { $gte: startDate, $lte: endDate },
-                },
-            },
-            {
-                $group: {
-                    _id: "$categoryId",
-                    totalSpent: { $sum: "$amount" },
-                },
-            },
-        ]);
-
-        // Fetch budgets
-        const budgets = await Budget.aggregate([
-            {
-                $match: { userId: new mongoose.Types.ObjectId(userId) },
-            },
-            {
-                $lookup: {
-                    from: "categories",
-                    localField: "categoryId",
-                    foreignField: "_id",
-                    as: "categoryDetails",
-                },
-            },
-            {
-                $unwind: {
-                    path: "$categoryDetails",
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
-            {
-                $project: {
-                    categoryId: 1,
-                    categoryName: { $ifNull: ["$categoryDetails.name", "Other"] },
-                    monthlyBudget: "$amount",
-                    annualBudget: { $multiply: ["$amount", 12] }, // Calculate yearly budget
-                },
-            },
-        ]);
-
-        // Map transactions to their respective categories
-        const categorySpendingMap = transactions.reduce((acc, txn) => {
-            const categoryId = txn._id ? txn._id.toString() : "Other";
-            acc[categoryId] = txn.totalSpent;
-            return acc;
-        }, {});
-
-        // Final budget summary calculation
-        const yearlyBudgetSummary = budgets.map(budget => {
-            const categoryId = budget.categoryId ? budget.categoryId.toString() : "Other";
-            const spent = categorySpendingMap[categoryId] || 0;
-            return {
-                categoryId: budget.categoryId,
-                categoryName: budget.categoryName,
-                annualBudget: budget.annualBudget,
-                spent,
-                remaining: budget.annualBudget - spent,
-            };
+        // Get all transactions for the year
+        const transactions = await Transaction.find({
+            userId,
+            date: { $gte: startDate, $lte: endDate },
+            transactionType: "debit" // Only consider debit transactions for budget tracking
         });
 
-        // Handle transactions without a category (Others)
-        if (categorySpendingMap["Other"]) {
-            yearlyBudgetSummary.push({
-                categoryId: null,
-                categoryName: "Other",
-                annualBudget: 0,
-                spent: categorySpendingMap["Other"],
-                remaining: -categorySpendingMap["Other"],
-            });
+        // Group transactions by categoryId
+        const categoryTransactions: Record<string, number> = {};
+        transactions.forEach(transaction => {
+            if (transaction.categoryId) {
+                const categoryIdStr = transaction.categoryId.toString();
+                if (!categoryTransactions[categoryIdStr]) {
+                    categoryTransactions[categoryIdStr] = 0;
+                }
+                categoryTransactions[categoryIdStr] += transaction.amount;
+            }
+        });
+
+        // Get all budgets for the user with populated category information
+        const budgets = await Budget.find({ userId }).populate('categoryId', 'name');
+
+        // Create a map of categoryId to budget
+        const budgetMap: Record<string, any> = {};
+        budgets.forEach(budget => {
+            budgetMap[budget.categoryId._id.toString()] = budget;
+        });
+
+        // Prepare the response
+        const budgetSummaries = [];
+        let totalBudgets = 0;
+
+        // Process each category that has transactions
+        for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
+            let budget = budgetMap[categoryId];
+            
+            // If no budget found for this category, try to find the most appropriate one
+            if (!budget) {
+                budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
+                if (budget) {
+                    // Populate the category information for the budget
+                    await budget.populate('categoryId', 'name');
+                }
+            }
+            
+            if (budget) {
+                totalBudgets++;
+                budgetSummaries.push({
+                    _id: budget._id,
+                    budgetId: budget._id,
+                    categoryId: budget.categoryId._id,
+                    categoryName: budget.categoryId.name,
+                    yearlyBudget: budget.amount,
+                    spent: spent,
+                    remaining: budget.amount - spent
+                });
+            }
         }
 
-        if (!yearlyBudgetSummary.length) {
-            return res.status(404).json(new ApiResponse(404, null, `No budgets found for the year ${year}`));
+        // Add budgets that don't have transactions yet
+        for (const [categoryId, budget] of Object.entries(budgetMap)) {
+            // Skip if we already processed this category
+            if (categoryTransactions[categoryId]) continue;
+            
+            // Check if this budget covers the requested year
+            const budgetStartDate = new Date(budget.startDate);
+            const budgetEndDate = new Date(budget.endDate);
+            
+            if (budgetStartDate <= endDate && budgetEndDate >= startDate) {
+                totalBudgets++;
+                budgetSummaries.push({
+                    _id: budget._id,
+                    budgetId: budget._id,
+                    categoryId: budget.categoryId._id,
+                    categoryName: budget.categoryId.name,
+                    yearlyBudget: budget.amount,
+                    spent: 0,
+                    remaining: budget.amount
+                });
+            }
         }
 
-        return res.status(200).json(new ApiResponse(200, {
-            year,
-            budgets: yearlyBudgetSummary,
-            totalBudgets: yearlyBudgetSummary.length || 0
-        }, "Yearly budget summary fetched successfully"));
+        return res.status(200).json(
+            new ApiResponse(200, {
+                year: queryYear,
+                totalBudgets,
+                budgets: budgetSummaries
+            }, "Yearly budget summary fetched successfully")
+        );
     } catch (error) {
-        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
     }
 };
 
-
-
-
-
-
-
 export {
     createBudget, updateBudget, deleteBudget, getAllBudgets, getMonthlyBudgetSummary, getYearlyBudgetSummary
-
 }

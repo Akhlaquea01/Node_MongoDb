@@ -2,6 +2,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Account, Transaction } from "../models/bank.model.js";
 import { Budget } from "../models/budget.model.js";
+import { Category } from "../models/category.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
@@ -113,7 +114,7 @@ const getAccount = asyncHandler(async (req, res) => {
 });
 
 const createTransaction = async (req, res) => {
-    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = req.body;
+    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = req.body;
     const userId = req.user._id;
     try {
         // Create new transaction
@@ -127,7 +128,8 @@ const createTransaction = async (req, res) => {
             tags,
             isRecurring,
             location,
-            sharedWith
+            sharedWith,
+            budgetId // Add budgetId to the transaction
         });
         const updatedAccount = await Account.findById(accountId);
 
@@ -160,24 +162,52 @@ const createTransaction = async (req, res) => {
 
         await newTransaction.save();
 
-        // Find the corresponding budget for the category
-        const budget = await Budget.findOne({
-            userId,
-            categoryId
-        });
-
-        // If a budget exists, update the spent amount
-        if (budget) {
-            budget.spent += amount;
-            await budget.save();
-        } else {
-            const budget = await Budget.findOne({
-                type: "predefined",
-                name: "Others"
-            });
+        // Handle budget updates for debit transactions
+        if (transactionType === "debit") {
+            let budget;
+            
+            // Case 1: If budgetId is provided, use that specific budget
+            if (budgetId) {
+                budget = await Budget.findById(budgetId);
+            } 
+            // Case 2: If no budgetId but categoryId is provided, find the most appropriate budget for the category
+            else if (categoryId) {
+                // First try to find a budget that covers the current date
+                const currentDate = new Date();
+                budget = await Budget.findOne({
+                    userId,
+                    categoryId,
+                    startDate: { $lte: currentDate },
+                    endDate: { $gte: currentDate }
+                });
+                
+                // If no budget covers the current date, find the most recent one
+                if (!budget) {
+                    budget = await Budget.findOne({
+                        userId,
+                        categoryId
+                    }).sort({ endDate: -1 });
+                }
+            }
+            
+            // Case 3: If a budget is found, update its spent amount
             if (budget) {
                 budget.spent += amount;
                 await budget.save();
+            } 
+            // Case 4: If no budget is found, try to find the "Others" budget
+            else {
+                // Try to find the "Others" budget for the user
+                const otherBudget = await Budget.findOne({
+                    userId,
+                    name: "Others"
+                });
+                
+                if (otherBudget) {
+                    otherBudget.spent += amount;
+                    await otherBudget.save();
+                }
+                // If no "Others" budget exists, we don't update any budget
             }
         }
 
@@ -451,51 +481,123 @@ const getTransactions = async (req, res) => {
 const getTransactionSummary = async (req, res) => {
     try {
         const userId = req.user._id;
+        const { month, year, startDate, endDate } = req.query;
 
-        // Extract month and year from query parameters; default to current month and year
-        const { month, year } = req.query;
-        const currentDate = new Date();
-        const queryMonth = month ? parseInt(month, 10) - 1 : currentDate.getMonth(); // Months are 0-based
-        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
+        // Parse dates based on provided parameters
+        let queryStartDate, queryEndDate;
+        
+        if (month && year) {
+            // If month and year are provided, use them to calculate date range
+            const queryMonth = parseInt(month, 10) - 1; // Convert to 0-based month
+            const queryYear = parseInt(year, 10);
+            
+            // Set start date to first day of the month
+            queryStartDate = new Date(queryYear, queryMonth, 1);
+            
+            // Set end date to last day of the month
+            queryEndDate = new Date(queryYear, queryMonth + 1, 0);
+        } else if (startDate && endDate) {
+            // If startDate and endDate are provided, use them directly
+            queryStartDate = new Date(startDate);
+            queryEndDate = new Date(endDate);
+        } else {
+            // Default to current month if no parameters are provided
+            const currentDate = new Date();
+            queryStartDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            queryEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        }
 
-        // Calculate the start and end dates for the specified or current month
-        const startDate = new Date(queryYear, queryMonth, 1);
-        const endDate = new Date(queryYear, queryMonth + 1, 1);
+        // Calculate the previous month's date range for savings calculation
+        const prevMonthStartDate = new Date(queryStartDate);
+        prevMonthStartDate.setMonth(prevMonthStartDate.getMonth() - 1);
+        const prevMonthEndDate = new Date(queryStartDate);
+        prevMonthEndDate.setDate(prevMonthEndDate.getDate() - 1);
 
-        // Aggregate transactions to calculate total income, expenses, and net amount
-        const summary = await Transaction.aggregate([
-            {
-                $match: {
-                    userId: new mongoose.Types.ObjectId(userId),
-                    date: { $gte: startDate, $lt: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalIncome: {
-                        $sum: {
-                            $cond: [{ $eq: ["$transactionType", "credit"] }, "$amount", 0]
-                        }
-                    },
-                    totalExpense: {
-                        $sum: {
-                            $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0]
-                        }
+        // Get transactions for the current period with populated category information
+        const transactions = await Transaction.find({
+            userId,
+            date: { $gte: queryStartDate, $lte: queryEndDate }
+        }).populate('categoryId', 'name');
+
+        // Get transactions for the previous month to calculate savings
+        const prevMonthTransactions = await Transaction.find({
+            userId,
+            date: { $gte: prevMonthStartDate, $lte: prevMonthEndDate }
+        });
+
+        // Calculate current period summary
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let categoryWiseExpense = {};
+        let categoryWiseIncome = {};
+
+        // Process current period transactions
+        transactions.forEach(transaction => {
+            if (transaction.transactionType === "credit") {
+                totalIncome += transaction.amount;
+                if (transaction.categoryId) {
+                    const categoryName = transaction.categoryId.name || "Unknown";
+                    if (!categoryWiseIncome[categoryName]) {
+                        categoryWiseIncome[categoryName] = 0;
                     }
+                    categoryWiseIncome[categoryName] += transaction.amount;
                 }
-            },
-            {
-                $addFields: {
-                    netAmount: { $subtract: ["$totalIncome", "$totalExpense"] }
+            } else if (transaction.transactionType === "debit") {
+                totalExpense += transaction.amount;
+                if (transaction.categoryId) {
+                    const categoryName = transaction.categoryId.name || "Unknown";
+                    if (!categoryWiseExpense[categoryName]) {
+                        categoryWiseExpense[categoryName] = 0;
+                    }
+                    categoryWiseExpense[categoryName] += transaction.amount;
                 }
             }
-        ]);
+        });
 
-        // If no transactions are found, initialize summary with zeros
-        const result = summary.length > 0 ? summary[0] : { totalIncome: 0, totalExpense: 0, netAmount: 0 };
+        // Calculate previous month's savings (net amount)
+        let prevMonthIncome = 0;
+        let prevMonthExpense = 0;
+        prevMonthTransactions.forEach(transaction => {
+            if (transaction.transactionType === "credit") {
+                prevMonthIncome += transaction.amount;
+            } else if (transaction.transactionType === "debit") {
+                prevMonthExpense += transaction.amount;
+            }
+        });
+        const lastMonthSavings = prevMonthIncome - prevMonthExpense;
 
-        return res.status(200).json(new ApiResponse(200, result, "Transaction summary fetched successfully"));
+        // Format category-wise data for response
+        const formattedCategoryWiseExpense = Object.entries(categoryWiseExpense).map(([category, amount]) => ({
+            category,
+            amount
+        }));
+
+        const formattedCategoryWiseIncome = Object.entries(categoryWiseIncome).map(([category, amount]) => ({
+            category,
+            amount
+        }));
+
+        // Calculate net amount (savings) for the current period
+        const netAmount = totalIncome - totalExpense;
+
+        // Include month and year in the response for clarity
+        const responseMonth = queryStartDate.getMonth() + 1; // Convert back to 1-based month
+        const responseYear = queryStartDate.getFullYear();
+
+        return res.status(200).json(
+            new ApiResponse(200, {
+                month: responseMonth,
+                year: responseYear,
+                startDate: queryStartDate,
+                endDate: queryEndDate,
+                totalIncome,
+                totalExpense,
+                netAmount,
+                lastMonthSavings,
+                categoryWiseExpense: formattedCategoryWiseExpense,
+                categoryWiseIncome: formattedCategoryWiseIncome
+            }, "Transaction summary fetched successfully")
+        );
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
