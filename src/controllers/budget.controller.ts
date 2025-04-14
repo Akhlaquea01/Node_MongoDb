@@ -320,7 +320,11 @@ const getYearlyBudgetSummary = async (req, res) => {
             return res.status(404).json(new ApiResponse(404, null, `No budgets found for the year ${year}`));
         }
 
-        return res.status(200).json(new ApiResponse(200, { year, budgets: yearlyBudgetSummary }, "Yearly budget summary fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, {
+            year,
+            budgets: yearlyBudgetSummary,
+            totalBudgets: yearlyBudgetSummary.length || 0
+        }, "Yearly budget summary fetched successfully"));
     } catch (error) {
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
