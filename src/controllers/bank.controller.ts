@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Account, Transaction } from "../models/bank.model.js";
 import { Budget } from "../models/budget.model.js";
 import { Category } from "../models/category.model.js";
+import { findAppropriateBudget, updateBudgetSpent } from "../utils/budgetUtils.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
@@ -129,7 +130,7 @@ const createTransaction = async (req, res) => {
             isRecurring,
             location,
             sharedWith,
-            budgetId // Add budgetId to the transaction
+            budgetId
         });
         const updatedAccount = await Account.findById(accountId);
 
@@ -148,9 +149,9 @@ const createTransaction = async (req, res) => {
                     new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
                 );
             }
-            newBalance -= amount; // Deduct the amount
+            newBalance -= amount;
         } else if (transactionType === "credit") {
-            newBalance += amount; // Add the amount
+            newBalance += amount;
         }
 
         // Update the account balance in the database
@@ -164,51 +165,13 @@ const createTransaction = async (req, res) => {
 
         // Handle budget updates for debit transactions
         if (transactionType === "debit") {
-            let budget;
-            
-            // Case 1: If budgetId is provided, use that specific budget
-            if (budgetId) {
-                budget = await Budget.findById(budgetId);
-            } 
-            // Case 2: If no budgetId but categoryId is provided, find the most appropriate budget for the category
-            else if (categoryId) {
-                // First try to find a budget that covers the current date
-                const currentDate = new Date();
-                budget = await Budget.findOne({
-                    userId,
-                    categoryId,
-                    startDate: { $lte: currentDate },
-                    endDate: { $gte: currentDate }
-                });
-                
-                // If no budget covers the current date, find the most recent one
-                if (!budget) {
-                    budget = await Budget.findOne({
-                        userId,
-                        categoryId
-                    }).sort({ endDate: -1 });
-                }
-            }
-            
-            // Case 3: If a budget is found, update its spent amount
-            if (budget) {
-                budget.spent += amount;
-                await budget.save();
-            } 
-            // Case 4: If no budget is found, try to find the "Others" budget
-            else {
-                // Try to find the "Others" budget for the user
-                const otherBudget = await Budget.findOne({
-                    userId,
-                    name: "Others"
-                });
-                
-                if (otherBudget) {
-                    otherBudget.spent += amount;
-                    await otherBudget.save();
-                }
-                // If no "Others" budget exists, we don't update any budget
-            }
+            const budget = await findAppropriateBudget(
+                userId,
+                categoryId,
+                budgetId,
+                newTransaction.date
+            );
+            await updateBudgetSpent(budget, amount);
         }
 
         return res.status(201).json(new ApiResponse(201, { transaction: newTransaction }, "Transaction created successfully"));
@@ -229,12 +192,11 @@ const createMultipleTransactions = async (req, res) => {
     }
 
     try {
-        const currentDate = new Date();
         const savedTransactions = [];
         const budgetUpdates = [];
 
         for (const txn of transactions) {
-            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = txn;
+            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = txn;
 
             // Create new transaction
             const newTransaction = new Transaction({
@@ -247,7 +209,8 @@ const createMultipleTransactions = async (req, res) => {
                 tags,
                 isRecurring,
                 location,
-                sharedWith
+                sharedWith,
+                budgetId
             });
 
             const updatedAccount = await Account.findById(accountId);
@@ -267,9 +230,9 @@ const createMultipleTransactions = async (req, res) => {
                         new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
                     );
                 }
-                newBalance -= amount; // Deduct the amount
+                newBalance -= amount;
             } else if (transactionType === "credit") {
-                newBalance += amount; // Add the amount
+                newBalance += amount;
             }
 
             // Update the account balance in the database
@@ -281,28 +244,16 @@ const createMultipleTransactions = async (req, res) => {
             await newTransaction.save();
             savedTransactions.push(newTransaction);
 
-            // Find the corresponding budget for the category in the current date range
-            const budget = await Budget.findOne({
-                userId,
-                categoryId,
-                startDate: { $lte: currentDate },
-                endDate: { $gte: currentDate }
-            });
-
-            // If a budget exists, update the spent amount
-            if (budget) {
-                budget.spent += amount;
-                budgetUpdates.push(budget.save());
-            } else {
-                const budget = await Budget.findOne({
+            // Handle budget updates for debit transactions
+            if (transactionType === "debit") {
+                const budget = await findAppropriateBudget(
                     userId,
-                    categoryId: "679503070a5043480a8a9a26",//other category
-                    startDate: { $lte: currentDate },
-                    endDate: { $gte: currentDate }
-                });
+                    categoryId,
+                    budgetId,
+                    newTransaction.date
+                );
                 if (budget) {
-                    budget.spent += amount;
-                    budgetUpdates.push(budget.save());
+                    budgetUpdates.push(updateBudgetSpent(budget, amount));
                 }
             }
         }
@@ -322,11 +273,13 @@ const createMultipleTransactions = async (req, res) => {
 
 const updateTransaction = async (req, res) => {
     const { transactionId } = req.params;
-    const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith } = req.body;
+    const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = req.body;
+    let oldTransaction;
+    let updatedTransaction;
 
     try {
         // Find the existing transaction to check the old category and amount
-        const oldTransaction = await Transaction.findById(transactionId);
+        oldTransaction = await Transaction.findById(transactionId);
 
         if (!oldTransaction) {
             return res.status(400).json(
@@ -335,7 +288,7 @@ const updateTransaction = async (req, res) => {
         }
 
         // Update the transaction
-        const updatedTransaction = await Transaction.findByIdAndUpdate(
+        updatedTransaction = await Transaction.findByIdAndUpdate(
             transactionId,
             {
                 transactionType,
@@ -345,48 +298,34 @@ const updateTransaction = async (req, res) => {
                 tags,
                 isRecurring,
                 location,
-                sharedWith
+                sharedWith,
+                budgetId
             },
-            { new: true } // returns the updated transaction
+            { new: true }
         );
 
-        // If category is changed, update the budgets accordingly
-        if (oldTransaction.categoryId.toString() !== categoryId.toString()) {
-            // Decrease spent amount in the old category's budget
-            const oldBudget = await Budget.findOne({
-                userId: updatedTransaction.userId,
-                categoryId: oldTransaction.categoryId,
-                startDate: { $lte: new Date() },
-                endDate: { $gte: new Date() }
-            });
-            if (oldBudget) {
-                oldBudget.spent -= oldTransaction.amount;
-                await oldBudget.save();
+        // Handle budget updates
+        if (oldTransaction.transactionType === "debit" || transactionType === "debit") {
+            // If the old transaction was a debit, subtract its amount from the old budget
+            if (oldTransaction.transactionType === "debit") {
+                const oldBudget = await findAppropriateBudget(
+                    oldTransaction.userId,
+                    oldTransaction.categoryId,
+                    oldTransaction.budgetId,
+                    oldTransaction.date
+                );
+                await updateBudgetSpent(oldBudget, oldTransaction.amount, true);
             }
-
-            // Increase spent amount in the new category's budget
-            const newBudget = await Budget.findOne({
-                userId: updatedTransaction.userId,
-                categoryId,
-                startDate: { $lte: new Date() },
-                endDate: { $gte: new Date() }
-            });
-            if (newBudget) {
-                newBudget.spent += amount;
-                await newBudget.save();
-            }
-        } else {
-            // If category is not changed, just adjust the spent amount based on the amount change
-            const budget = await Budget.findOne({
-                userId: updatedTransaction.userId,
-                categoryId,
-                startDate: { $lte: new Date() },
-                endDate: { $gte: new Date() }
-            });
-            if (budget) {
-                budget.spent -= oldTransaction.amount; // Subtract old amount
-                budget.spent += amount; // Add new amount
-                await budget.save();
+            
+            // If the new transaction is a debit, add its amount to the new budget
+            if (transactionType === "debit") {
+                const newBudget = await findAppropriateBudget(
+                    oldTransaction.userId,
+                    categoryId,
+                    budgetId,
+                    updatedTransaction.date
+                );
+                await updateBudgetSpent(newBudget, amount);
             }
         }
 
