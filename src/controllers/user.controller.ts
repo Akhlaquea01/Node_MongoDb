@@ -154,7 +154,7 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
-    if (accessToken === null || refreshToken === null) { 
+    if (accessToken === null || refreshToken === null) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", new Error("Something went wrong"))
         );
@@ -551,7 +551,10 @@ const getAllUsers = asyncHandler(async (req, res) => {
             return res.status(204).json(new ApiResponse(204, null, "No users found"));
         }
 
-        return res.status(200).json(new ApiResponse(200, { users }, "Users fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, {
+            users,
+            totalUsers: users.length || 0
+        }, "Users fetched successfully"));
     } catch (error) {
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }

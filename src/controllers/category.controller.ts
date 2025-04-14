@@ -54,7 +54,10 @@ const getCategories = asyncHandler(async (req, res) => {
         // Merge both categories
         const categories = [...predefinedCategories, ...customCategories];
 
-        return res.status(200).json(new ApiResponse(200, { categories }, "Categories fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, {
+            categories,
+            totalRecords: categories.length || 0
+        }, "Categories fetched successfully"));
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
