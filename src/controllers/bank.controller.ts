@@ -912,9 +912,151 @@ const getInvestmentsByUser = async (req, res) => {
     }
 };
 
+/**
+ * Transfer money between accounts
+ * Creates two transactions: one debit from source account and one credit to destination account
+ * Updates account balances accordingly
+ * Categorizes the debit transaction as "Utilities & Bills" for budget tracking
+ */
+const transferMoney = async (req, res) => {
+    try {
+        const { sourceAccountId, destinationAccountId, amount, description, tags, isBillPayment, categoryId } = req.body;
+        const userId = req.user._id;
 
+        // Validate accounts exist and belong to the user
+        const sourceAccount = await Account.findOne({ _id: sourceAccountId, userId });
+        const destinationAccount = await Account.findOne({ _id: destinationAccountId, userId });
+
+        if (!sourceAccount) {
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Source account not found", new Error(`Source account not found with ID: ${sourceAccountId}`))
+            );
+        }
+
+        if (!destinationAccount) {
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Destination account not found", new Error(`Destination account not found with ID: ${destinationAccountId}`))
+            );
+        }
+
+        // Check if source account has sufficient balance
+        if (sourceAccount.balance < amount) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in source account: ${sourceAccountId}`))
+            );
+        }
+
+        // Determine the category to use
+        let transactionCategoryId = categoryId;
+        
+        // If no category provided, try to find an appropriate one
+        if (!transactionCategoryId) {
+            if (isBillPayment) {
+                // For bill payments, try to find "Utilities & Bills" category
+                const billPaymentCategory = await Category.findOne({ name: "Utilities & Bills", type: "predefined" });
+                if (billPaymentCategory) {
+                    transactionCategoryId = billPaymentCategory._id;
+                }
+            } else {
+                // For regular transfers, try to find "Transfer" category or fall back to "Utilities & Bills"
+                const transferCategory = await Category.findOne({ name: "Transfer", type: "predefined" });
+                if (transferCategory) {
+                    transactionCategoryId = transferCategory._id;
+                } else {
+                    const defaultCategory = await Category.findOne({ name: "Utilities & Bills", type: "predefined" });
+                    if (defaultCategory) {
+                        transactionCategoryId = defaultCategory._id;
+                    }
+                }
+            }
+        }
+        
+        // If still no category found, return an error
+        if (!transactionCategoryId) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Category required", new Error("No valid category found. Please provide a categoryId in the request."))
+            );
+        }
+
+        // Create a reference ID to link the two transactions
+        const referenceId = new mongoose.Types.ObjectId().toString();
+
+        // Create debit transaction from source account
+        const debitTransaction = new Transaction({
+            userId,
+            accountId: sourceAccountId,
+            transactionType: "debit",
+            amount,
+            categoryId: transactionCategoryId,
+            description: description || `Transfer to ${destinationAccount.accountName}`,
+            tags: tags || ["transfer", isBillPayment ? "bill-payment" : "internal-transfer"],
+            isRecurring: false,
+            location: [],
+            sharedWith: [],
+            referenceId
+        });
+
+        // Create credit transaction to destination account
+        const creditTransaction = new Transaction({
+            userId,
+            accountId: destinationAccountId,
+            transactionType: "credit",
+            amount,
+            categoryId: transactionCategoryId,
+            description: description || `Transfer from ${sourceAccount.accountName}`,
+            tags: tags || ["transfer", isBillPayment ? "bill-payment" : "internal-transfer"],
+            isRecurring: false,
+            location: [],
+            sharedWith: [],
+            referenceId
+        });
+
+        // Update account balances
+        const updatedSourceAccount = await Account.findByIdAndUpdate(
+            sourceAccountId,
+            { balance: sourceAccount.balance - amount },
+            { new: true }
+        );
+
+        const updatedDestinationAccount = await Account.findByIdAndUpdate(
+            destinationAccountId,
+            { balance: destinationAccount.balance + amount },
+            { new: true }
+        );
+
+        // Save both transactions
+        await debitTransaction.save();
+        await creditTransaction.save();
+
+        // Handle budget updates for bill payments
+        if (isBillPayment) {
+            const budget = await findAppropriateBudget(
+                userId,
+                transactionCategoryId,
+                null,
+                debitTransaction.date
+            );
+            if (budget) {
+                await updateBudgetSpent(budget, amount);
+            }
+        }
+
+        return res.status(201).json(
+            new ApiResponse(201, {
+                debitTransaction,
+                creditTransaction,
+                sourceAccount: updatedSourceAccount,
+                destinationAccount: updatedDestinationAccount
+            }, "Money transferred successfully")
+        );
+    } catch (error) {
+        return res.status(500).json(
+            new ApiResponse(500, undefined, "Something went wrong", error)
+        );
+    }
+};
 
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary, transferMoney
 
 };
