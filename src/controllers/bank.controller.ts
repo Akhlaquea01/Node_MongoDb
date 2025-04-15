@@ -404,9 +404,20 @@ const getTransactions = async (req, res) => {
             filter.isRecurring = isRecurring === "true";
         }
 
-        const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });;
+        const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });
+        
+        // Transform the transactions to rename categoryId to category and accountId to account
+        const transformedTransactions = transactions.map(transaction => {
+            const transactionObj = transaction.toObject();
+            transactionObj.category = transactionObj.categoryId;
+            transactionObj.account = transactionObj.accountId;
+            delete transactionObj.categoryId;
+            delete transactionObj.accountId;
+            return transactionObj;
+        });
+        
         const result = {
-            transactions,
+            transactions: transformedTransactions,
             totalTxn: transactions.length
         }
         return res.status(200).json(new ApiResponse(200, result, "Transactions fetched successfully"));
