@@ -1012,17 +1012,31 @@ const transferMoney = async (req, res) => {
         });
 
         // Update account balances
+        // For source account (always debit)
         const updatedSourceAccount = await Account.findByIdAndUpdate(
             sourceAccountId,
             { balance: sourceAccount.balance - amount },
             { new: true }
         );
 
-        const updatedDestinationAccount = await Account.findByIdAndUpdate(
-            destinationAccountId,
-            { balance: destinationAccount.balance + amount },
-            { new: true }
-        );
+        // For destination account (always credit)
+        // Special handling for credit card accounts
+        let updatedDestinationAccount;
+        if (destinationAccount.accountType === "credit card") {
+            // For credit cards, a credit transaction reduces the balance (which is typically negative)
+            updatedDestinationAccount = await Account.findByIdAndUpdate(
+                destinationAccountId,
+                { balance: destinationAccount.balance - amount }, // Subtract amount to reduce debt
+                { new: true }
+            );
+        } else {
+            // For other account types, a credit transaction increases the balance
+            updatedDestinationAccount = await Account.findByIdAndUpdate(
+                destinationAccountId,
+                { balance: destinationAccount.balance + amount },
+                { new: true }
+            );
+        }
 
         // Save both transactions
         await debitTransaction.save();
