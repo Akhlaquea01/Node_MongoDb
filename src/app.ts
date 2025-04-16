@@ -54,6 +54,7 @@ import communityRouter from "./routes/community.routes.js";
 import bankRouter from "./routes/bank.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import budgetRouter from "./routes/budget.routes.js";
+import genAIRouter from "./routes/genAI.routes.js";
 
 //routes declaration
 app.use("/api/v1/healthcheck", healthcheckRouter);
@@ -69,6 +70,7 @@ app.use("/api/v1/community", communityRouter);
 app.use("/api/v1/account", bankRouter);
 app.use("/api/v1/categories", categoryRouter);
 app.use("/api/v1/budget", budgetRouter);
+app.use("/api/v1/ai", genAIRouter);
 
 // http://localhost:8000/api/v1/users/register
 

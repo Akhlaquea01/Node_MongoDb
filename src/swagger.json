@@ -2910,6 +2910,142 @@
           }
         }
       }
+    },
+    "/api/v1/ai/analyze-monthly": {
+      "post": {
+        "tags": ["AI Analysis"],
+        "summary": "Analyze monthly transactions using AI",
+        "description": "Analyzes transactions for a given date range and provides AI-powered insights",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startDate", "endDate"],
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date for analysis (YYYY-MM-DD)"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "End date for analysis (YYYY-MM-DD)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Analysis completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "analysis": {
+                          "type": "string",
+                          "description": "AI-generated analysis of transactions"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Monthly transaction analysis completed successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No transactions found for the specified period"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/ai/smart-suggestions": {
+      "post": {
+        "tags": ["AI Analysis"],
+        "summary": "Get AI-driven smart suggestions",
+        "description": "Analyzes transactions and provides personalized financial suggestions",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startDate", "endDate"],
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date for analysis (YYYY-MM-DD)"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "End date for analysis (YYYY-MM-DD)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Suggestions generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "suggestions": {
+                          "type": "string",
+                          "description": "AI-generated financial suggestions"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Smart suggestions generated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No transactions found for the specified period"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
     }
   }
 }
