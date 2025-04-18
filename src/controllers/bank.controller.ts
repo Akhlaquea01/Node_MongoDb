@@ -11,8 +11,17 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const createAccount = asyncHandler(async (req, res) => {
     try {
-        const { accountType, accountName, accountNumber, currency, balance, foreignDetails, isDefault } = req.body;
+        const { accountType, accountName, accountNumber, currency, balance, foreignDetails, isDefault, limit } = req.body;
         const userId = req.user._id;
+
+        // Validate credit card limit if account type is credit_card
+        if (accountType === "credit_card") {
+            if (!limit || limit <= 0) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Credit card limit is required and must be greater than 0")
+                );
+            }
+        }
 
         // Check if the account is being set as default and unset other default accounts for the user
         if (isDefault) {
@@ -27,7 +36,8 @@ const createAccount = asyncHandler(async (req, res) => {
             currency,
             balance,
             foreignDetails,
-            isDefault
+            isDefault,
+            limit
         });
 
         await account.save();
@@ -1019,13 +1029,20 @@ const transferMoney = async (req, res) => {
         );
 
         // For destination account (always credit)
-        // Special handling for credit card accounts
+        // Special handling for credit_card accounts
         let updatedDestinationAccount;
-        if (destinationAccount.accountType === "credit card") {
+        if (destinationAccount.accountType === "credit_card") {
             // For credit cards, a credit transaction reduces the balance (which is typically negative)
+            // Also check if the transaction would exceed the credit limit
+            const newBalance = destinationAccount.balance - amount;
+            if (Math.abs(newBalance) > destinationAccount.limit) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Transaction would exceed credit card limit")
+                );
+            }
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
-                { balance: destinationAccount.balance - amount }, // Subtract amount to reduce debt
+                { balance: newBalance },
                 { new: true }
             );
         } else {

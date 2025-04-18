@@ -92,8 +92,8 @@ const AccountSchema = new mongoose.Schema(
         },
         accountType: {
             type: String,
-            enum: ["bank", "credit card", "wallet", "cash", "demat", "other"],
             required: true,
+            enum: ["bank", "credit_card", "wallet", "cash", "demat", "other"],
         },
         accountName: {
             type: String,
@@ -135,6 +135,18 @@ const AccountSchema = new mongoose.Schema(
         initialBalance: {
             type: Number,
             default: 0,
+        },
+        limit: {
+            type: Number,
+            required: function() {
+                return this.accountType === "credit_card";
+            },
+            validate: {
+                validator: function(value: number) {
+                    return value > 0;
+                },
+                message: "Credit card limit must be greater than 0"
+            }
         },
     },
     { timestamps: true }
