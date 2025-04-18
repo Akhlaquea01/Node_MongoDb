@@ -89,38 +89,65 @@ const updateAccount = asyncHandler(async (req, res) => {
 const deleteAccount = asyncHandler(async (req, res) => {
     try {
         const { accountId } = req.params;
+        const userId = req.user._id;
 
-        const deletedAccount = await Account.findByIdAndDelete(accountId);
+        // Find the account first
+        const account = await Account.findOne({ _id: accountId, userId });
 
-        if (!deletedAccount) {
+        if (!account) {
             return res.status(404).json(
                 new ApiResponse(404, undefined, "Account not found", new Error("Account not found"))
             );
         }
+        // Instead of deleting, mark as inactive and deleted
+        const updatedAccount = await Account.findByIdAndUpdate(
+            accountId,
+            {
+                status: "inactive"
+            },
+            { new: true }
+        );
+
         return res.status(200).json(
-            new ApiResponse(200, { message: "Account deleted successfully" }, "Account deleted successfully")
+            new ApiResponse(200, { account: updatedAccount }, "Account marked as deleted successfully")
         );
     } catch (error) {
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
     }
-
 });
+
 const getAccount = asyncHandler(async (req, res) => {
     try {
         const userId = req.user._id;
+        const { includeInactive } = req.query;
 
-        const accounts = await Account.find({ userId });
+        // Build the query
+        const query: any = {
+            userId: new mongoose.Types.ObjectId(userId),
+            status: 'active'
+        };
+
+        // If includeInactive is true, remove the status filter
+        if (includeInactive === 'true') {
+            delete query.status;
+        }
+
+        // Fetch accounts with populated transaction count
+        const accounts = await Account.find(query)
+            .sort({ isDefault: -1, createdAt: -1 });
+
+
         return res.status(200).json(
-            new ApiResponse(200, { accounts }, "Account fetched successfully")
+            new ApiResponse(200, { accounts, totalAccounts: accounts.length }, "Accounts fetched successfully")
         );
     } catch (error) {
+        console.error("Error in getAccount:", error);
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
     }
-
 });
 
 const createTransaction = async (req, res) => {
@@ -325,7 +352,7 @@ const updateTransaction = async (req, res) => {
                 );
                 await updateBudgetSpent(oldBudget, oldTransaction.amount, true);
             }
-            
+
             // If the new transaction is a debit, add its amount to the new budget
             if (transactionType === "debit") {
                 const newBudget = await findAppropriateBudget(
@@ -414,7 +441,7 @@ const getTransactions = async (req, res) => {
         }
 
         const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });
-        
+
         // Transform the transactions to rename categoryId to category and accountId to account
         const transformedTransactions = transactions.map(transaction => {
             const transactionObj = transaction.toObject();
@@ -424,7 +451,7 @@ const getTransactions = async (req, res) => {
             delete transactionObj.accountId;
             return transactionObj;
         });
-        
+
         const result = {
             transactions: transformedTransactions,
             totalTxn: transactions.length
@@ -444,15 +471,15 @@ const getTransactionSummary = async (req, res) => {
 
         // Parse dates based on provided parameters
         let queryStartDate, queryEndDate;
-        
+
         if (month && year) {
             // If month and year are provided, use them to calculate date range
             const queryMonth = parseInt(month, 10) - 1; // Convert to 0-based month
             const queryYear = parseInt(year, 10);
-            
+
             // Set start date to first day of the month
             queryStartDate = new Date(queryYear, queryMonth, 1);
-            
+
             // Set end date to last day of the month
             queryEndDate = new Date(queryYear, queryMonth + 1, 0);
         } else if (startDate && endDate) {
@@ -957,7 +984,7 @@ const transferMoney = async (req, res) => {
 
         // Determine the category to use
         let transactionCategoryId = categoryId;
-        
+
         // If no category provided, try to find an appropriate one
         if (!transactionCategoryId) {
             if (isBillPayment) {
@@ -979,7 +1006,7 @@ const transferMoney = async (req, res) => {
                 }
             }
         }
-        
+
         // If still no category found, return an error
         if (!transactionCategoryId) {
             return res.status(400).json(
