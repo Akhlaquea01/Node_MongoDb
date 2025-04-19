@@ -989,17 +989,17 @@ const transferMoney = async (req, res) => {
         if (!transactionCategoryId) {
             if (isBillPayment) {
                 // For bill payments, try to find "Utilities & Bills" category
-                const billPaymentCategory = await Category.findOne({ name: "Utilities & Bills", type: "predefined" });
+                const billPaymentCategory = await Category.findOne({ name: "Utilities & Bills", isDefault: true });
                 if (billPaymentCategory) {
                     transactionCategoryId = billPaymentCategory._id;
                 }
             } else {
                 // For regular transfers, try to find "Transfer" category or fall back to "Utilities & Bills"
-                const transferCategory = await Category.findOne({ name: "Transfer", type: "predefined" });
+                const transferCategory = await Category.findOne({ name: "Transfer", isDefault: true });
                 if (transferCategory) {
                     transactionCategoryId = transferCategory._id;
                 } else {
-                    const defaultCategory = await Category.findOne({ name: "Utilities & Bills", type: "predefined" });
+                    const defaultCategory = await Category.findOne({ name: "Others", isDefault: true });
                     if (defaultCategory) {
                         transactionCategoryId = defaultCategory._id;
                     }

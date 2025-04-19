@@ -1,6 +1,5 @@
 // Finance Tracker App
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { Account, Transaction } from "../models/bank.model.js";
 import { Category } from "../models/category.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -9,7 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const createCategory = asyncHandler(async (req, res) => {
     try {
-        const { name, type, icon, parentCategory } = req.body;
+        const { name, isDefault, icon, parentCategory, transactionType } = req.body;
         const userId = req.user._id;
         // Check if category with the same name already exists for the same user
         const existingCategory = await Category.findOne({ name, userId });
@@ -22,10 +21,11 @@ const createCategory = asyncHandler(async (req, res) => {
         // Create a new category
         const category = new Category({
             name,
-            type,
+            isDefault,
             userId,
             icon,
             parentCategory,
+            transactionType: transactionType || "debit", // Default to debit if not provided
         });
 
         await category.save();
@@ -41,14 +41,27 @@ const createCategory = asyncHandler(async (req, res) => {
 const getCategories = asyncHandler(async (req, res) => {
     try {
         const userId = req.user._id;
+        const { transactionType } = req.query;
+
+        // Build the query for predefined categories
+        const predefinedQuery: any = { isDefault: true };
+        if (transactionType) {
+            predefinedQuery.transactionType = transactionType;
+        }
 
         // Fetch predefined categories (always included)
-        const predefinedCategories = await Category.find({ type: "predefined" }).exec();
+        const predefinedCategories = await Category.find(predefinedQuery).exec();
+
+        // Build the query for custom categories
+        const customQuery: any = { userId, isDefault: false };
+        if (transactionType) {
+            customQuery.transactionType = transactionType;
+        }
 
         // Fetch user-specific custom categories if userId is provided and valid
         let customCategories = [];
         if (userId && userId !== '0') {
-            customCategories = await Category.find({ userId }).populate('parentCategory').exec();
+            customCategories = await Category.find(customQuery).populate('parentCategory').exec();
         }
 
         // Merge both categories

@@ -7,10 +7,14 @@ const CategorySchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
-    type: {
+    isDefault: {
+        type: Boolean,
+        default: true, // true for predefined categories, false for custom ones
+    },
+    transactionType: {
         type: String,
-        enum: ["predefined", "custom"],
-        default: "predefined", // Predefined categories are available to all users.
+        enum: ["credit", "debit"],
+        default: "debit",
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
