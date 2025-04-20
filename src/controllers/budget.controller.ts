@@ -314,6 +314,7 @@ const getBudgetSummary = async (req, res) => {
                     budgetId: budget._id,
                     categoryId: budget.categoryId._id,
                     categoryName: budget.categoryId.name,
+                    categoryColor: budget.categoryId.color??'#000000',
                     budget: budget.amount,
                     spent: spent,
                     remaining: budget.amount - spent
