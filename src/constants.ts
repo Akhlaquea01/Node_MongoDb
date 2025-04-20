@@ -114,14 +114,6 @@ Return your results as a **structured JSON object** using the following format:
     "Multiple transactions in short time",
     "Any notable trend or spike"
   ],
-  "recurringTransactionsReview": {
-    "unmarkedRecurringTransactions": [
-      "Possible recurring transaction that is not tagged"
-    ],
-    "actualRecurringTransactions": [
-      "Proper recurring transaction detected"
-    ]
-  },
   "accountOptimization": [
     "Observation or suggestion about account usage"
   ]
