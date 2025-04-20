@@ -282,7 +282,7 @@ const getBudgetSummary = async (req, res) => {
         });
 
         // Get all budgets for the user with populated category information
-        const budgets = await Budget.find({ userId }).populate('categoryId', 'name');
+        const budgets = await Budget.find({ userId }).populate('categoryId', 'name color');
 
         // Create a map of categoryId to budget
         const budgetMap: Record<string, any> = {};
@@ -303,7 +303,7 @@ const getBudgetSummary = async (req, res) => {
                 budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
                 if (budget) {
                     // Populate the category information for the budget
-                    await budget.populate('categoryId', 'name');
+                    await budget.populate('categoryId', 'name color');
                 }
             }
             
@@ -314,7 +314,7 @@ const getBudgetSummary = async (req, res) => {
                     budgetId: budget._id,
                     categoryId: budget.categoryId._id,
                     categoryName: budget.categoryId.name,
-                    categoryColor: budget.categoryId.color??'#000000',
+                    categoryColor: budget.categoryId.color,
                     budget: budget.amount,
                     spent: spent,
                     remaining: budget.amount - spent
@@ -338,7 +338,7 @@ const getBudgetSummary = async (req, res) => {
                     budgetId: budget._id,
                     categoryId: budget.categoryId._id,
                     categoryName: budget.categoryId.name,
-                    categoryColor: budget.categoryId.color??'#000000',
+                    categoryColor: budget.categoryId.color,
                     budget: budget.amount,
                     spent: 0,
                     remaining: budget.amount
