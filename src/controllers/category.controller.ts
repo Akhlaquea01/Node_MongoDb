@@ -8,7 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const createCategory = asyncHandler(async (req, res) => {
     try {
-        const { name, isDefault, icon, parentCategory, transactionType } = req.body;
+        const { name, isDefault, icon, parentCategory, transactionType,color } = req.body;
         const userId = req.user._id;
         // Check if category with the same name already exists for the same user
         const existingCategory = await Category.findOne({ name, userId });
@@ -24,6 +24,7 @@ const createCategory = asyncHandler(async (req, res) => {
             isDefault,
             userId,
             icon,
+            color,
             parentCategory,
             transactionType: transactionType || "debit", // Default to debit if not provided
         });
@@ -80,7 +81,7 @@ const getCategories = asyncHandler(async (req, res) => {
 const updateCategory = asyncHandler(async (req, res) => {
     try {
         const { categoryId } = req.params;
-        const { name, icon, parentCategory } = req.body;
+        const { name, icon, parentCategory,color } = req.body;
 
         // Check if the category exists
         const category = await Category.findById(categoryId);
@@ -105,6 +106,7 @@ const updateCategory = asyncHandler(async (req, res) => {
             name,
             icon,
             parentCategory,
+            color,
         }, { new: true });
 
         return res.status(200).json(new ApiResponse(200, { updatedCategory }, "Category updated successfully"));

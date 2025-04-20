@@ -7,6 +7,11 @@ const CategorySchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    color: {
+        type: String,
+        required: true,
+        default: "#000000",
+    },
     isDefault: {
         type: Boolean,
         default: true, // true for predefined categories, false for custom ones
