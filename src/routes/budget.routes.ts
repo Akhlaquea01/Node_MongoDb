@@ -1,7 +1,7 @@
 // Finance Tracker App
 import { Router } from 'express';
 import {
-    createBudget, updateBudget, deleteBudget, getAllBudgets, getMonthlyBudgetSummary, getYearlyBudgetSummary
+    createBudget, updateBudget, deleteBudget, getAllBudgets, getBudgetSummary
 } from "../controllers/budget.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -13,8 +13,7 @@ router.route("/create").post(createBudget);
 router.route("/:budgetId").put(updateBudget);
 router.route("/:budgetId").delete(deleteBudget);
 router.route("/getAll").get(getAllBudgets);
-router.route("/monthly").get(getMonthlyBudgetSummary);//?month=1&year=2025
-router.route("/yearly").get(getYearlyBudgetSummary);//?year=2025
+router.route("/summary").get(getBudgetSummary);
 
 
 export default router

@@ -2,7 +2,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Budget } from "../models/budget.model.js";
 import { Transaction } from "../models/bank.model.js";
-import { Category } from "../models/category.model.js";
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 // import jwt from "jsonwebtoken";
@@ -234,21 +233,36 @@ const getMostRecentBudgetForCategory = async (userId, categoryId, date) => {
     return budget;
 };
 
-const getMonthlyBudgetSummary = async (req, res) => {
+const getBudgetSummary = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { month, year } = req.query;
+        const { period, month, year } = req.query;
 
-        // Parse month and year, defaulting to current month if not provided
+        // Validate period parameter
+        if (!['monthly', 'yearly'].includes(period)) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Invalid period", new Error("Period must be either 'monthly' or 'yearly'"))
+            );
+        }
+
+        // Parse dates based on period
         const currentDate = new Date();
-        const queryMonth = month ? parseInt(month, 10) - 1 : currentDate.getMonth(); // Months are 0-based
-        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
+        let startDate, endDate;
 
-        // Calculate the start and end dates for the specified month
-        const startDate = new Date(queryYear, queryMonth, 1);
-        const endDate = new Date(queryYear, queryMonth + 1, 0); // Last day of the month
+        if (period === 'monthly') {
+            // For monthly summary
+            const queryMonth = month ? parseInt(month, 10) - 1 : currentDate.getMonth();
+            const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
+            startDate = new Date(queryYear, queryMonth, 1);
+            endDate = new Date(queryYear, queryMonth + 1, 0);
+        } else {
+            // For yearly summary
+            const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
+            startDate = new Date(queryYear, 0, 1);
+            endDate = new Date(queryYear, 11, 31);
+        }
 
-        // Get all transactions for the month
+        // Get all transactions for the period
         const transactions = await Transaction.find({
             userId,
             date: { $gte: startDate, $lte: endDate },
@@ -300,7 +314,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
                     budgetId: budget._id,
                     categoryId: budget.categoryId._id,
                     categoryName: budget.categoryId.name,
-                    monthlyBudget: budget.amount,
+                    budget: budget.amount,
                     spent: spent,
                     remaining: budget.amount - spent
                 });
@@ -312,7 +326,7 @@ const getMonthlyBudgetSummary = async (req, res) => {
             // Skip if we already processed this category
             if (categoryTransactions[categoryId]) continue;
             
-            // Check if this budget covers the requested month
+            // Check if this budget covers the requested period
             const budgetStartDate = new Date(budget.startDate);
             const budgetEndDate = new Date(budget.endDate);
             
@@ -323,129 +337,29 @@ const getMonthlyBudgetSummary = async (req, res) => {
                     budgetId: budget._id,
                     categoryId: budget.categoryId._id,
                     categoryName: budget.categoryId.name,
-                    monthlyBudget: budget.amount,
+                    budget: budget.amount,
                     spent: 0,
                     remaining: budget.amount
                 });
             }
         }
 
-        return res.status(200).json(
-            new ApiResponse(200, {
-                month: queryMonth + 1, // Convert back to 1-based month
-                year: queryYear,
+        // Prepare response based on period
+        const response = period === 'monthly' 
+            ? {
+                month: startDate.getMonth() + 1,
+                year: startDate.getFullYear(),
                 totalBudgets,
                 budgets: budgetSummaries
-            }, "Monthly budget summary fetched successfully")
-        );
-    } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
-    }
-};
-
-const getYearlyBudgetSummary = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        const { year } = req.query;
-
-        // Parse year, defaulting to current year if not provided
-        const currentDate = new Date();
-        const queryYear = year ? parseInt(year, 10) : currentDate.getFullYear();
-
-        // Calculate the start and end dates for the specified year
-        const startDate = new Date(queryYear, 0, 1); // January 1st
-        const endDate = new Date(queryYear, 11, 31); // December 31st
-
-        // Get all transactions for the year
-        const transactions = await Transaction.find({
-            userId,
-            date: { $gte: startDate, $lte: endDate },
-            transactionType: "debit" // Only consider debit transactions for budget tracking
-        });
-
-        // Group transactions by categoryId
-        const categoryTransactions: Record<string, number> = {};
-        transactions.forEach(transaction => {
-            if (transaction.categoryId) {
-                const categoryIdStr = transaction.categoryId.toString();
-                if (!categoryTransactions[categoryIdStr]) {
-                    categoryTransactions[categoryIdStr] = 0;
-                }
-                categoryTransactions[categoryIdStr] += transaction.amount;
             }
-        });
-
-        // Get all budgets for the user with populated category information
-        const budgets = await Budget.find({ userId }).populate('categoryId', 'name');
-
-        // Create a map of categoryId to budget
-        const budgetMap: Record<string, any> = {};
-        budgets.forEach(budget => {
-            budgetMap[budget.categoryId._id.toString()] = budget;
-        });
-
-        // Prepare the response
-        const budgetSummaries = [];
-        let totalBudgets = 0;
-
-        // Process each category that has transactions
-        for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
-            let budget = budgetMap[categoryId];
-            
-            // If no budget found for this category, try to find the most appropriate one
-            if (!budget) {
-                budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
-                if (budget) {
-                    // Populate the category information for the budget
-                    await budget.populate('categoryId', 'name');
-                }
-            }
-            
-            if (budget) {
-                totalBudgets++;
-                budgetSummaries.push({
-                    _id: budget._id,
-                    budgetId: budget._id,
-                    categoryId: budget.categoryId._id,
-                    categoryName: budget.categoryId.name,
-                    yearlyBudget: budget.amount,
-                    spent: spent,
-                    remaining: budget.amount - spent
-                });
-            }
-        }
-
-        // Add budgets that don't have transactions yet
-        for (const [categoryId, budget] of Object.entries(budgetMap)) {
-            // Skip if we already processed this category
-            if (categoryTransactions[categoryId]) continue;
-            
-            // Check if this budget covers the requested year
-            const budgetStartDate = new Date(budget.startDate);
-            const budgetEndDate = new Date(budget.endDate);
-            
-            if (budgetStartDate <= endDate && budgetEndDate >= startDate) {
-                totalBudgets++;
-                budgetSummaries.push({
-                    _id: budget._id,
-                    budgetId: budget._id,
-                    categoryId: budget.categoryId._id,
-                    categoryName: budget.categoryId.name,
-                    yearlyBudget: budget.amount,
-                    spent: 0,
-                    remaining: budget.amount
-                });
-            }
-        }
-
-        return res.status(200).json(
-            new ApiResponse(200, {
-                year: queryYear,
+            : {
+                year: startDate.getFullYear(),
                 totalBudgets,
                 budgets: budgetSummaries
-            }, "Yearly budget summary fetched successfully")
+            };
+
+        return res.status(200).json(
+            new ApiResponse(200, response, `${period} budget summary fetched successfully`)
         );
     } catch (error) {
         return res.status(500).json(
@@ -455,5 +369,5 @@ const getYearlyBudgetSummary = async (req, res) => {
 };
 
 export {
-    createBudget, updateBudget, deleteBudget, getAllBudgets, getMonthlyBudgetSummary, getYearlyBudgetSummary
+    createBudget, updateBudget, deleteBudget, getAllBudgets, getBudgetSummary
 }
