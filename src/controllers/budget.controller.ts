@@ -9,10 +9,18 @@ import mongoose from "mongoose";
 // Create a Budget
 const createBudget = asyncHandler(async (req, res) => {
     try {
-        const { userId, name, amount, type, startDate, endDate, categoryId, recurring } = req.body;
+        const { userId, name, amount, type, categoryId, recurring } = req.body;
+
+        // Set default dates to first and last day of current month if not provided
+        const currentDate = new Date();
+        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        
+        const startDate = req.body.startDate ? new Date(req.body.startDate) : firstDayOfMonth;
+        const endDate = req.body.endDate ? new Date(req.body.endDate) : lastDayOfMonth;
 
         // Required fields for validation
-        const requiredFields = { userId, name, amount, startDate, endDate, recurring };
+        const requiredFields = { userId, name, amount, recurring };
 
         // Check if any required field is missing or invalid
         const missingFields = Object.entries(requiredFields)
@@ -29,9 +37,7 @@ const createBudget = asyncHandler(async (req, res) => {
         }
 
         // Validate date range
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        if (start >= end) {
+        if (startDate > endDate) {
             return res.status(400).json(
                 new ApiResponse(400, undefined, "Invalid date range", new Error("Start date must be before end date"))
             );
@@ -42,8 +48,8 @@ const createBudget = asyncHandler(async (req, res) => {
             userId,
             name,
             $and: [
-                { startDate: { $lte: end } },
-                { endDate: { $gte: start } }
+                { startDate: { $lte: endDate } },
+                { endDate: { $gte: startDate } }
             ]
         });
 
@@ -60,8 +66,8 @@ const createBudget = asyncHandler(async (req, res) => {
             categoryId,
             endDate: { $gte: new Date() }, // Check if budget is still active
             $and: [
-                { startDate: { $lte: end } },
-                { endDate: { $gte: start } }
+                { startDate: { $lte: endDate } },
+                { endDate: { $gte: startDate } }
             ]
         });
 
