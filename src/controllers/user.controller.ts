@@ -107,7 +107,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const mailOptions = {
         from: process.env.EMAIL_ADDRESS,
-        to: 'akhlaquea01@gmail.com',
+        to:`akhlaquea01@gmail.com,${email}`,
         subject: 'Hello from Akhlaque',
         html: registrationEmail({ userName: username })
     };
