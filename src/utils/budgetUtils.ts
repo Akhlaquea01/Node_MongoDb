@@ -40,15 +40,25 @@ export const findAppropriateBudget = async (
                 categoryId
             }).sort({ endDate: -1 });
         }
-
-        if (budget) return budget;
     }
 
-    // Case 3: If no budget found, try to find the "Others" budget
-    budget = await Budget.findOne({
-        userId,
-        name: "Others"
-    });
+    // Case 3: If no budget found for the category, use the "Others" budget
+    if (!budget) {
+        budget = await Budget.findOne({
+            userId,
+            name: "Others",
+            startDate: { $lte: date },
+            endDate: { $gte: date }
+        });
+
+        // If no active Others budget found, get the most recent Others budget
+        if (!budget) {
+            budget = await Budget.findOne({
+                userId,
+                name: "Others"
+            }).sort({ endDate: -1 });
+        }
+    }
 
     return budget;
 };
