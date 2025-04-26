@@ -442,10 +442,21 @@ const getTransactions = async (req, res) => {
 
         const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });
 
+        // Get the Others category once for all transactions
+        const othersCategory = await Category.findOne({ name: 'Others', isDefault: true });
+
         // Transform the transactions to rename categoryId to category and accountId to account
         const transformedTransactions = transactions.map(transaction => {
             const transactionObj = transaction.toObject();
-            transactionObj.category = transactionObj.categoryId;
+            // Handle null or missing category
+            if (!transactionObj.categoryId) {
+                transactionObj.category = othersCategory?.toObject() || {
+                    name: 'Others',
+                    color: '#808080'
+                };
+            } else {
+                transactionObj.category = transactionObj.categoryId;
+            }
             transactionObj.account = transactionObj.accountId;
             delete transactionObj.categoryId;
             delete transactionObj.accountId;
