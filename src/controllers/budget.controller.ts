@@ -37,21 +37,38 @@ const createBudget = asyncHandler(async (req, res) => {
             );
         }
 
-        // Check for overlapping budgets in the same date range
-        const overlappingBudget = await Budget.findOne({
+        // First check for duplicate name in any time period for the same user
+        const duplicateNameBudget = await Budget.findOne({
             userId,
-            categoryId,
-            $or: [
-                {
-                    startDate: { $lte: end },
-                    endDate: { $gte: start }
-                }
+            name,
+            $and: [
+                { startDate: { $lte: end } },
+                { endDate: { $gte: start } }
             ]
         });
 
-        if (overlappingBudget) {
+        if (duplicateNameBudget) {
             return res.status(400).json(
-                new ApiResponse(400, undefined, "Budget overlap", new Error("A budget already exists for this category in the specified date range"))
+                new ApiResponse(400, undefined, "Duplicate budget name", 
+                    new Error(`A budget with name "${name}" already exists for the specified date range. Please use a different name or choose different dates.`))
+            );
+        }
+
+        // Then check for overlapping active budget with same category
+        const existingActiveBudget = await Budget.findOne({
+            userId,
+            categoryId,
+            endDate: { $gte: new Date() }, // Check if budget is still active
+            $and: [
+                { startDate: { $lte: end } },
+                { endDate: { $gte: start } }
+            ]
+        });
+
+        if (existingActiveBudget) {
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Active budget exists", 
+                    new Error(`An active budget already exists for this category in the specified date range. Please update the existing budget or choose different dates.`))
             );
         }
 
