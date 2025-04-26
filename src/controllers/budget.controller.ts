@@ -300,16 +300,20 @@ const getBudgetSummary = async (req, res) => {
             transactionType: "debit" // Only consider debit transactions for budget tracking
         });
 
+        // Get the "Others" budget for uncategorized transactions
+        const othersBudget = await Budget.findOne({ 
+            userId, 
+            name: 'Others' 
+        }).populate('categoryId', 'name color');
+
         // Group transactions by categoryId
         const categoryTransactions: Record<string, number> = {};
         transactions.forEach(transaction => {
-            if (transaction.categoryId) {
-                const categoryIdStr = transaction.categoryId.toString();
-                if (!categoryTransactions[categoryIdStr]) {
-                    categoryTransactions[categoryIdStr] = 0;
-                }
-                categoryTransactions[categoryIdStr] += transaction.amount;
+            const categoryIdStr = transaction.categoryId ? transaction.categoryId.toString() : othersBudget._id.toString();
+            if (!categoryTransactions[categoryIdStr]) {
+                categoryTransactions[categoryIdStr] = 0;
             }
+            categoryTransactions[categoryIdStr] += transaction.amount;
         });
 
         // Get all budgets for the user with populated category information
@@ -318,7 +322,11 @@ const getBudgetSummary = async (req, res) => {
         // Create a map of categoryId to budget
         const budgetMap: Record<string, any> = {};
         budgets.forEach(budget => {
-            budgetMap[budget.categoryId._id.toString()] = budget;
+            if (budget.categoryId) {
+                budgetMap[budget.categoryId._id.toString()] = budget;
+            } else if (budget.name === 'Others') {
+                budgetMap['others'] = budget;
+            }
         });
 
         // Prepare the response
@@ -328,7 +336,7 @@ const getBudgetSummary = async (req, res) => {
         // Process each category that has transactions
         for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
             let budget = budgetMap[categoryId];
-
+            
             // If no budget found for this category, try to find the most appropriate one
             if (!budget) {
                 budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
@@ -337,15 +345,15 @@ const getBudgetSummary = async (req, res) => {
                     await budget.populate('categoryId', 'name color');
                 }
             }
-
+            
             if (budget) {
                 totalBudgets++;
                 budgetSummaries.push({
                     _id: budget._id,
                     budgetId: budget._id,
-                    categoryId: budget.categoryId._id,
-                    categoryName: budget.categoryId.name,
-                    categoryColor: budget.categoryId.color,
+                    categoryId: budget.categoryId?._id || null,
+                    categoryName: budget.categoryId?.name || budget.name,
+                    categoryColor: budget.categoryId?.color || '#808080', // Default gray color
                     budget: budget.amount,
                     spent: spent,
                     remaining: budget.amount - spent
@@ -357,7 +365,7 @@ const getBudgetSummary = async (req, res) => {
         for (const [categoryId, budget] of Object.entries(budgetMap)) {
             // Skip if we already processed this category
             if (categoryTransactions[categoryId]) continue;
-
+            
             // Check if this budget covers the requested period
             const budgetStartDate = new Date(budget.startDate);
             const budgetEndDate = new Date(budget.endDate);
@@ -367,9 +375,9 @@ const getBudgetSummary = async (req, res) => {
                 budgetSummaries.push({
                     _id: budget._id,
                     budgetId: budget._id,
-                    categoryId: budget.categoryId._id,
-                    categoryName: budget.categoryId.name,
-                    categoryColor: budget.categoryId.color,
+                    categoryId: budget.categoryId?._id || null,
+                    categoryName: budget.categoryId?.name || budget.name,
+                    categoryColor: budget.categoryId?.color || '#808080', // Default gray color
                     budget: budget.amount,
                     spent: 0,
                     remaining: budget.amount
@@ -378,7 +386,7 @@ const getBudgetSummary = async (req, res) => {
         }
 
         // Prepare response based on period
-        const response = period === 'monthly'
+        const response = period === 'monthly' 
             ? {
                 month: startDate.getMonth() + 1,
                 year: startDate.getFullYear(),
