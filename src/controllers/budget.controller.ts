@@ -298,92 +298,96 @@ const getBudgetSummary = async (req, res) => {
             userId,
             date: { $gte: startDate, $lte: endDate },
             transactionType: "debit" // Only consider debit transactions for budget tracking
-        });
-
-        // Get the "Others" budget for uncategorized transactions
-        const othersBudget = await Budget.findOne({ 
-            userId, 
-            name: 'Others' 
         }).populate('categoryId', 'name color');
-
-        // Group transactions by categoryId
-        const categoryTransactions: Record<string, number> = {};
-        transactions.forEach(transaction => {
-            const categoryIdStr = transaction.categoryId ? transaction.categoryId.toString() : othersBudget._id.toString();
-            if (!categoryTransactions[categoryIdStr]) {
-                categoryTransactions[categoryIdStr] = 0;
-            }
-            categoryTransactions[categoryIdStr] += transaction.amount;
-        });
 
         // Get all budgets for the user with populated category information
         const budgets = await Budget.find({ userId }).populate('categoryId', 'name color');
 
         // Create a map of categoryId to budget
-        const budgetMap: Record<string, any> = {};
+        const budgetMap = {};
         budgets.forEach(budget => {
             if (budget.categoryId) {
                 budgetMap[budget.categoryId._id.toString()] = budget;
-            } else if (budget.name === 'Others') {
-                budgetMap['others'] = budget;
             }
         });
 
-        // Prepare the response
+        // Find Others budget
+        const othersBudget = budgets.find(b => b.name === 'Others');
+
+        // Group transactions by categoryId
+        const categorySpent = {};
+        let othersTotal = 0;
+        
+        transactions.forEach(transaction => {
+            const categoryId = transaction.categoryId?._id?.toString();
+            if (categoryId && budgetMap[categoryId]) {
+                // Transaction has a matching budget category
+                if (!categorySpent[categoryId]) {
+                    categorySpent[categoryId] = 0;
+                }
+                categorySpent[categoryId] += transaction.amount;
+            } else {
+                // No matching budget category, add to Others
+                othersTotal += transaction.amount;
+            }
+        });
+
+        // Prepare budget summaries
         const budgetSummaries = [];
         let totalBudgets = 0;
 
-        // Process each category that has transactions
-        for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
-            let budget = budgetMap[categoryId];
-            
-            // If no budget found for this category, try to find the most appropriate one
-            if (!budget) {
-                budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
-                if (budget) {
-                    // Populate the category information for the budget
-                    await budget.populate('categoryId', 'name color');
-                }
-            }
-            
+        // First, process transactions with matching budgets
+        for (const [categoryId, spent] of Object.entries(categorySpent)) {
+            const budget = budgetMap[categoryId];
             if (budget) {
                 totalBudgets++;
                 budgetSummaries.push({
                     _id: budget._id,
                     budgetId: budget._id,
-                    categoryId: budget.categoryId?._id || null,
-                    categoryName: budget.categoryId?.name || budget.name,
-                    categoryColor: budget.categoryId?.color || '#808080', // Default gray color
-                    budget: budget.amount,
-                    spent: spent,
-                    remaining: budget.amount - spent
+                    categoryId: budget.categoryId._id,
+                    categoryName: budget.categoryId.name,
+                    categoryColor: budget.categoryId.color,
+                    budget: Number(budget.amount),
+                    spent: Number(spent),
+                    remaining: Number(budget.amount) - Number(spent)
                 });
             }
         }
 
-        // Add budgets that don't have transactions yet
-        for (const [categoryId, budget] of Object.entries(budgetMap)) {
-            // Skip if we already processed this category
-            if (categoryTransactions[categoryId]) continue;
-            
-            // Check if this budget covers the requested period
-            const budgetStartDate = new Date(budget.startDate);
-            const budgetEndDate = new Date(budget.endDate);
-
-            if (budgetStartDate <= endDate && budgetEndDate >= startDate) {
-                totalBudgets++;
-                budgetSummaries.push({
-                    _id: budget._id,
-                    budgetId: budget._id,
-                    categoryId: budget.categoryId?._id || null,
-                    categoryName: budget.categoryId?.name || budget.name,
-                    categoryColor: budget.categoryId?.color || '#808080', // Default gray color
-                    budget: budget.amount,
-                    spent: 0,
-                    remaining: budget.amount
-                });
-            }
+        // Add Others budget if it exists and there are uncategorized transactions
+        if (othersBudget && (othersTotal > 0 || !budgetSummaries.some(b => b._id.toString() === othersBudget._id.toString()))) {
+            totalBudgets++;
+            budgetSummaries.push({
+                _id: othersBudget._id,
+                budgetId: othersBudget._id,
+                categoryId: othersBudget.categoryId?._id || null,
+                categoryName: 'Others',
+                categoryColor: othersBudget.categoryId?.color || '#808080',
+                budget: Number(othersBudget.amount),
+                spent: Number(othersTotal),
+                remaining: Number(othersBudget.amount) - Number(othersTotal)
+            });
         }
+
+        // Add remaining budgets that don't have any transactions
+        budgets.forEach(budget => {
+            if (budget.name !== 'Others') {  // Skip Others budget as it's already handled
+                const budgetId = budget._id.toString();
+                if (!budgetSummaries.some(summary => summary._id.toString() === budgetId)) {
+                    totalBudgets++;
+                    budgetSummaries.push({
+                        _id: budget._id,
+                        budgetId: budget._id,
+                        categoryId: budget.categoryId?._id || null,
+                        categoryName: budget.categoryId?.name || budget.name,
+                        categoryColor: budget.categoryId?.color || '#808080',
+                        budget: Number(budget.amount),
+                        spent: 0,
+                        remaining: Number(budget.amount)
+                    });
+                }
+            }
+        });
 
         // Prepare response based on period
         const response = period === 'monthly' 
