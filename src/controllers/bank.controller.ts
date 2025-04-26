@@ -151,7 +151,7 @@ const getAccount = asyncHandler(async (req, res) => {
 });
 
 const createTransaction = async (req, res) => {
-    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = req.body;
+    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = req.body;
     const userId = req.user._id;
     try {
         // Create new transaction
@@ -166,7 +166,8 @@ const createTransaction = async (req, res) => {
             isRecurring,
             location,
             sharedWith,
-            budgetId
+            budgetId,
+            date: date ? new Date(date) : new Date() // Use provided date or current date
         });
         const updatedAccount = await Account.findById(accountId);
 
@@ -232,7 +233,7 @@ const createMultipleTransactions = async (req, res) => {
         const budgetUpdates = [];
 
         for (const txn of transactions) {
-            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = txn;
+            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = txn;
 
             // Create new transaction
             const newTransaction = new Transaction({
@@ -246,7 +247,8 @@ const createMultipleTransactions = async (req, res) => {
                 isRecurring,
                 location,
                 sharedWith,
-                budgetId
+                budgetId,
+                date: date ? new Date(date) : new Date() // Use provided date or current date
             });
 
             const updatedAccount = await Account.findById(accountId);
