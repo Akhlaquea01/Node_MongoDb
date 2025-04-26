@@ -167,12 +167,13 @@ const getAllBudgets = async (req, res) => {
         if (!budgets.length) {
             return res.status(200).json(new ApiResponse(200, { budgets: [], totalBudgetCount: 0 }, "No budgets found"));
         }
-        let otherBudget = null;
-        if (userId != '6792a79a93a45d02c5016fb7') {
-            otherBudget = await Budget.find({ userId: new mongoose.Types.ObjectId('6792a79a93a45d02c5016fb7'), name: 'Others' })
-                .populate("categoryId", "name");
-        }
-        // Transform response: remove unwanted fields and handle "Other" category
+
+        // Get the "Others" budget for the user
+        const othersBudget = await Budget.findOne({
+            name: 'Others'
+        }).populate("categoryId", "name");
+
+        // Transform response: remove unwanted fields and handle null categoryId
         const formattedBudgets = budgets.map(budget => {
             const budgetObj = budget.toObject();
             return {
@@ -183,13 +184,26 @@ const getAllBudgets = async (req, res) => {
                 createdAt: budgetObj.createdAt,
                 startDate: budgetObj.startDate,
                 endDate: budgetObj.endDate,
-                name: budgetObj.name ?? budgetObj.categoryId.name,
-                category: budgetObj.categoryId ? budgetObj.categoryId : otherBudget.categoryId
+                name: budgetObj.name ?? (budgetObj?.categoryId?.name || 'Others'),
+                category: budgetObj.categoryId || (othersBudget?.categoryId || { name: 'Others' })
             };
         });
-        if (otherBudget) {
-            formattedBudgets.push(otherBudget[0].toObject());
+
+        // If no "Others" budget exists in the results, add it
+        if (othersBudget && !formattedBudgets.some(b => b.name === 'Others')) {
+            formattedBudgets.push({
+                _id: othersBudget._id,
+                userId: othersBudget.userId,
+                amount: othersBudget.amount,
+                recurring: othersBudget.recurring,
+                createdAt: othersBudget.createdAt,
+                startDate: othersBudget.startDate,
+                endDate: othersBudget.endDate,
+                name: 'Others',
+                category: othersBudget.categoryId || { name: 'Others' }
+            });
         }
+
         const result = {
             budgets: formattedBudgets,
             totalBudgetCount: formattedBudgets.length
@@ -297,7 +311,7 @@ const getBudgetSummary = async (req, res) => {
         // Process each category that has transactions
         for (const [categoryId, spent] of Object.entries(categoryTransactions)) {
             let budget = budgetMap[categoryId];
-            
+
             // If no budget found for this category, try to find the most appropriate one
             if (!budget) {
                 budget = await getMostRecentBudgetForCategory(userId, categoryId, startDate);
@@ -306,7 +320,7 @@ const getBudgetSummary = async (req, res) => {
                     await budget.populate('categoryId', 'name color');
                 }
             }
-            
+
             if (budget) {
                 totalBudgets++;
                 budgetSummaries.push({
@@ -326,11 +340,11 @@ const getBudgetSummary = async (req, res) => {
         for (const [categoryId, budget] of Object.entries(budgetMap)) {
             // Skip if we already processed this category
             if (categoryTransactions[categoryId]) continue;
-            
+
             // Check if this budget covers the requested period
             const budgetStartDate = new Date(budget.startDate);
             const budgetEndDate = new Date(budget.endDate);
-            
+
             if (budgetStartDate <= endDate && budgetEndDate >= startDate) {
                 totalBudgets++;
                 budgetSummaries.push({
@@ -347,7 +361,7 @@ const getBudgetSummary = async (req, res) => {
         }
 
         // Prepare response based on period
-        const response = period === 'monthly' 
+        const response = period === 'monthly'
             ? {
                 month: startDate.getMonth() + 1,
                 year: startDate.getFullYear(),
