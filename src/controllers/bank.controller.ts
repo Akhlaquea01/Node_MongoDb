@@ -675,77 +675,7 @@ const getTransactionSummary = async (req, res) => {
     }
 };
 
-const getRecurringTransactions = async (req, res) => {
-    try {
-        const userId = req.user._id;
 
-        // Fetch all recurring transactions
-        const recurringTransactions = await Transaction.find({ userId, isRecurring: true }).populate('categoryId').exec();
-
-        if (!recurringTransactions || recurringTransactions.length === 0) {
-            return res.status(404).json(new ApiResponse(404, null, "No recurring transactions found."));
-        }
-
-        return res.status(200).json(new ApiResponse(200, { recurringTransactions }, "Recurring transactions fetched successfully"));
-    } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
-    }
-};
-
-
-const addRecurringTransaction = async (req, res) => {
-    try {
-        const { userId, accountId, transactionType, amount, categoryId, description, interval } = req.body;
-
-        // Create new recurring transaction
-        const newRecurringTransaction = new Transaction({
-            userId,
-            accountId,
-            transactionType,
-            amount,
-            categoryId,
-            description,
-            isRecurring: true,
-            interval, // Recurrence interval (e.g., daily, weekly, monthly)
-        });
-
-        await newRecurringTransaction.save();
-
-        return res.status(201).json(new ApiResponse(201, { newRecurringTransaction }, "Recurring transaction added successfully"));
-    } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
-    }
-};
-
-
-const updateRecurringTransaction = async (req, res) => {
-    try {
-        const { transactionId } = req.params;
-        const { amount, categoryId, description, interval } = req.body;
-
-        // Update recurring transaction
-        const updatedTransaction = await Transaction.findByIdAndUpdate(transactionId, {
-            amount,
-            categoryId,
-            description,
-            interval,
-        }, { new: true });
-
-        if (!updatedTransaction) {
-            return res.status(404).json(new ApiResponse(404, null, "Recurring transaction not found."));
-        }
-
-        return res.status(200).json(new ApiResponse(200, { updatedTransaction }, "Recurring transaction updated successfully"));
-    } catch (error) {
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
-    }
-};
 
 // Get Expenses by User
 const getExpenseByUser = async (req, res) => {
@@ -1198,6 +1128,6 @@ const transferMoney = async (req, res) => {
 };
 
 export {
-    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getRecurringTransactions, addRecurringTransaction, updateRecurringTransaction, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary, transferMoney
+    createAccount, updateAccount, deleteAccount, getAccount, createTransaction, updateTransaction, deleteTransaction, getTransactions, getTransactionSummary, getExpenseByUser, getIncomeByUser, getInvestmentsByUser, createMultipleTransactions, getIncomeExpenseSummary, transferMoney
 
 };
