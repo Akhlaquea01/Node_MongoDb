@@ -311,13 +311,13 @@ const createMultipleTransactions = async (req, res) => {
 
 const updateTransaction = async (req, res) => {
     const { transactionId } = req.params;
-    const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId } = req.body;
+    const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date, accountId } = req.body;
     let oldTransaction;
     let updatedTransaction;
 
     try {
         // Find the existing transaction to check the old category and amount
-        oldTransaction = await Transaction.findById(transactionId);
+        oldTransaction = await Transaction.findById(transactionId).populate('accountId');
 
         if (!oldTransaction) {
             return res.status(400).json(
@@ -325,19 +325,90 @@ const updateTransaction = async (req, res) => {
             );
         }
 
+        // Get the old account details
+        const oldAccount = oldTransaction.accountId;
+
+        // If account is being changed, validate the new account
+        let newAccount;
+        if (accountId && accountId.toString() !== oldAccount._id.toString()) {
+            newAccount = await Account.findById(accountId);
+            if (!newAccount) {
+                return res.status(404).json(
+                    new ApiResponse(404, undefined, "New account not found", new Error(`Account not found with accountId:${accountId}`))
+                );
+            }
+        }
+
+        // Calculate balance changes
+        let oldAccountBalanceChange = 0;
+        let newAccountBalanceChange = 0;
+
+        // Handle old transaction reversal
+        if (oldTransaction.transactionType === "debit") {
+            oldAccountBalanceChange += oldTransaction.amount; // Add back the old debit
+        } else if (oldTransaction.transactionType === "credit") {
+            oldAccountBalanceChange -= oldTransaction.amount; // Subtract the old credit
+        }
+
+        // Handle new transaction
+        if (transactionType === "debit") {
+            if (accountId) {
+                newAccountBalanceChange -= amount; // New debit
+            } else {
+                oldAccountBalanceChange -= amount; // Updated debit in same account
+            }
+        } else if (transactionType === "credit") {
+            if (accountId) {
+                newAccountBalanceChange += amount; // New credit
+            } else {
+                oldAccountBalanceChange += amount; // Updated credit in same account
+            }
+        }
+
+        // Update account balances
+        if (oldAccountBalanceChange !== 0) {
+            const newOldAccountBalance = oldAccount.balance + oldAccountBalanceChange;
+            if (newOldAccountBalance < 0) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${oldAccount._id}`))
+                );
+            }
+            await Account.findByIdAndUpdate(
+                oldAccount._id,
+                { balance: newOldAccountBalance },
+                { new: true }
+            );
+        }
+
+        if (newAccount && newAccountBalanceChange !== 0) {
+            const newAccountBalance = newAccount.balance + newAccountBalanceChange;
+            if (newAccountBalance < 0) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${newAccount._id}`))
+                );
+            }
+            await Account.findByIdAndUpdate(
+                newAccount._id,
+                { balance: newAccountBalance },
+                { new: true }
+            );
+        }
+
         // Update the transaction
         updatedTransaction = await Transaction.findByIdAndUpdate(
             transactionId,
             {
-                transactionType,
-                amount,
-                categoryId,
-                description,
-                tags,
-                isRecurring,
-                location,
-                sharedWith,
-                budgetId
+                transactionType: transactionType || oldTransaction.transactionType,
+                amount: amount || oldTransaction.amount,
+                categoryId: categoryId || oldTransaction.categoryId,
+                description: description || oldTransaction.description,
+                tags: tags || oldTransaction.tags,
+                date: date ? new Date(date) : oldTransaction.date,
+                isRecurring: isRecurring !== undefined ? isRecurring : oldTransaction.isRecurring,
+                location: location || oldTransaction.location,
+                sharedWith: sharedWith || oldTransaction.sharedWith,
+                budgetId: budgetId || oldTransaction.budgetId,
+                accountId: accountId || oldTransaction.accountId
             },
             { new: true }
         );
@@ -359,11 +430,11 @@ const updateTransaction = async (req, res) => {
             if (transactionType === "debit") {
                 const newBudget = await findAppropriateBudget(
                     oldTransaction.userId,
-                    categoryId,
-                    budgetId,
+                    categoryId || oldTransaction.categoryId,
+                    budgetId || oldTransaction.budgetId,
                     updatedTransaction.date
                 );
-                await updateBudgetSpent(newBudget, amount);
+                await updateBudgetSpent(newBudget, amount || oldTransaction.amount);
             }
         }
 
