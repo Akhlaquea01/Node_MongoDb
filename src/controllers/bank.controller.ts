@@ -403,7 +403,7 @@ const updateTransaction = async (req, res) => {
                 categoryId: categoryId || oldTransaction.categoryId,
                 description: description || oldTransaction.description,
                 tags: tags || oldTransaction.tags,
-                date: date ? new Date(date) : oldTransaction.date,
+                date: date ? new Date(date) : new Date(oldTransaction.date),
                 isRecurring: isRecurring !== undefined ? isRecurring : oldTransaction.isRecurring,
                 location: location || oldTransaction.location,
                 sharedWith: sharedWith || oldTransaction.sharedWith,
@@ -478,7 +478,11 @@ const getTransactions = async (req, res) => {
         if (startDate || endDate) {
             filter.date = {};
             if (startDate) filter.date.$gte = new Date(startDate);
-            if (endDate) filter.date.$lte = new Date(endDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setUTCHours(23, 59, 59, 999);
+                filter.date.$lte = end;
+            }
         }
 
         // Filter by transaction type (credit/debit)

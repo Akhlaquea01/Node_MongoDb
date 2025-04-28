@@ -10,7 +10,6 @@ const BudgetSchema = new mongoose.Schema({
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
-        unique: true,
         required: true,
     },
     amount: { type: Number, required: true }, // Budgeted amount
@@ -24,5 +23,8 @@ const BudgetSchema = new mongoose.Schema({
         default: "none",
     },
 });
+
+// Add compound unique index for userId and categoryId
+BudgetSchema.index({ userId: 1, categoryId: 1 }, { unique: true });
 
 export const Budget = mongoose.model("Budget", BudgetSchema);
