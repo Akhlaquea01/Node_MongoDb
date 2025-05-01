@@ -852,7 +852,19 @@ const getIncomeExpenseSummary = async (req, res) => {
             .sort({ date: 1 });
 
         if (!transactions.length) {
-            return res.status(204).json(new ApiResponse(204, null, "No transactions found"));
+            return res.status(200).json(
+                new ApiResponse(
+                    200,
+                    {
+                        message: "No transactions found",
+                        context: {
+                            userId: req.user._id,
+                            filters: req.query,
+                        },
+                    },
+                    "No transactions found for the given filters"
+                )
+            );
         }
 
         const groupedData: Record<string, GroupedData> = {};
