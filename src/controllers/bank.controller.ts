@@ -180,15 +180,37 @@ const createTransaction = async (req, res) => {
         // Calculate new balance
         let newBalance = updatedAccount.balance;
 
-        if (transactionType === "debit") {
-            if (newBalance < amount) {
-                return res.status(400).json(
-                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
-                );
+        if (updatedAccount.accountType === "credit_card") {
+            // For credit cards, balance represents used amount (debt)
+            if (transactionType === "debit") {
+                // For debit, check if new balance would exceed limit
+                if (newBalance + amount > updatedAccount.limit) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
+                    );
+                }
+                newBalance += amount; // Increase balance (debt) for debit
+            } else if (transactionType === "credit") {
+                // For credit, check if there's enough balance to pay
+                if (newBalance < amount) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
+                    );
+                }
+                newBalance -= amount; // Decrease balance (debt) for credit
             }
-            newBalance -= amount;
-        } else if (transactionType === "credit") {
-            newBalance += amount;
+        } else {
+            // For regular accounts
+            if (transactionType === "debit") {
+                if (newBalance < amount) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
+                    );
+                }
+                newBalance -= amount;
+            } else if (transactionType === "credit") {
+                newBalance += amount;
+            }
         }
 
         // Update the account balance in the database
@@ -262,15 +284,37 @@ const createMultipleTransactions = async (req, res) => {
             // Calculate new balance
             let newBalance = updatedAccount.balance;
 
-            if (transactionType === "debit") {
-                if (newBalance < amount) {
-                    return res.status(400).json(
-                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
-                    );
+            if (updatedAccount.accountType === "credit_card") {
+                // For credit cards, balance represents used amount (debt)
+                if (transactionType === "debit") {
+                    // For debit, check if new balance would exceed limit
+                    if (newBalance + amount > updatedAccount.limit) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
+                        );
+                    }
+                    newBalance += amount; // Increase balance (debt) for debit
+                } else if (transactionType === "credit") {
+                    // For credit, check if there's enough balance to pay
+                    if (newBalance < amount) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
+                        );
+                    }
+                    newBalance -= amount; // Decrease balance (debt) for credit
                 }
-                newBalance -= amount;
-            } else if (transactionType === "credit") {
-                newBalance += amount;
+            } else {
+                // For regular accounts
+                if (transactionType === "debit") {
+                    if (newBalance < amount) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
+                        );
+                    }
+                    newBalance -= amount;
+                } else if (transactionType === "credit") {
+                    newBalance += amount;
+                }
             }
 
             // Update the account balance in the database
@@ -344,34 +388,100 @@ const updateTransaction = async (req, res) => {
         let newAccountBalanceChange = 0;
 
         // Handle old transaction reversal
-        if (oldTransaction.transactionType === "debit") {
-            oldAccountBalanceChange += oldTransaction.amount; // Add back the old debit
-        } else if (oldTransaction.transactionType === "credit") {
-            oldAccountBalanceChange -= oldTransaction.amount; // Subtract the old credit
+        if (oldAccount.accountType === "credit_card") {
+            // For credit cards, balance represents used amount (debt)
+            if (oldTransaction.transactionType === "debit") {
+                oldAccountBalanceChange -= oldTransaction.amount; // Subtract the old debit (decrease debt)
+            } else if (oldTransaction.transactionType === "credit") {
+                oldAccountBalanceChange += oldTransaction.amount; // Add back the old credit (increase debt)
+            }
+        } else {
+            // For regular accounts
+            if (oldTransaction.transactionType === "debit") {
+                oldAccountBalanceChange += oldTransaction.amount; // Add back the old debit
+            } else if (oldTransaction.transactionType === "credit") {
+                oldAccountBalanceChange -= oldTransaction.amount; // Subtract the old credit
+            }
         }
 
         // Handle new transaction
-        if (transactionType === "debit") {
-            if (accountId) {
-                newAccountBalanceChange -= amount; // New debit
+        if (accountId) {
+            // If account is being changed
+            if (newAccount.accountType === "credit_card") {
+                // For credit cards, balance represents used amount (debt)
+                if (transactionType === "debit") {
+                    // Check if new balance would exceed limit
+                    if (newAccount.balance + amount > newAccount.limit) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
+                        );
+                    }
+                    newAccountBalanceChange += amount; // Increase balance (debt) for debit
+                } else if (transactionType === "credit") {
+                    // Check if there's enough balance to pay
+                    if (newAccount.balance < amount) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
+                        );
+                    }
+                    newAccountBalanceChange -= amount; // Decrease balance (debt) for credit
+                }
             } else {
-                oldAccountBalanceChange -= amount; // Updated debit in same account
+                // For regular accounts
+                if (transactionType === "debit") {
+                    newAccountBalanceChange -= amount; // New debit
+                } else if (transactionType === "credit") {
+                    newAccountBalanceChange += amount; // New credit
+                }
             }
-        } else if (transactionType === "credit") {
-            if (accountId) {
-                newAccountBalanceChange += amount; // New credit
+        } else {
+            // If account is not being changed
+            if (oldAccount.accountType === "credit_card") {
+                // For credit cards, balance represents used amount (debt)
+                if (transactionType === "debit") {
+                    // Check if new balance would exceed limit
+                    if (oldAccount.balance + amount > oldAccount.limit) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${oldAccount._id}`))
+                        );
+                    }
+                    oldAccountBalanceChange += amount; // Increase balance (debt) for debit
+                } else if (transactionType === "credit") {
+                    // Check if there's enough balance to pay
+                    if (oldAccount.balance < amount) {
+                        return res.status(400).json(
+                            new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${oldAccount._id}`))
+                        );
+                    }
+                    oldAccountBalanceChange -= amount; // Decrease balance (debt) for credit
+                }
             } else {
-                oldAccountBalanceChange += amount; // Updated credit in same account
+                // For regular accounts
+                if (transactionType === "debit") {
+                    oldAccountBalanceChange -= amount; // Updated debit in same account
+                } else if (transactionType === "credit") {
+                    oldAccountBalanceChange += amount; // Updated credit in same account
+                }
             }
         }
 
         // Update account balances
         if (oldAccountBalanceChange !== 0) {
             const newOldAccountBalance = oldAccount.balance + oldAccountBalanceChange;
-            if (newOldAccountBalance < 0) {
-                return res.status(400).json(
-                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${oldAccount._id}`))
-                );
+            if (oldAccount.accountType === "credit_card") {
+                // For credit cards, check if new balance would exceed limit
+                if (newOldAccountBalance > oldAccount.limit) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${oldAccount._id}`))
+                    );
+                }
+            } else {
+                // For regular accounts, check if balance would go negative
+                if (newOldAccountBalance < 0) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${oldAccount._id}`))
+                    );
+                }
             }
             await Account.findByIdAndUpdate(
                 oldAccount._id,
@@ -382,10 +492,20 @@ const updateTransaction = async (req, res) => {
 
         if (newAccount && newAccountBalanceChange !== 0) {
             const newAccountBalance = newAccount.balance + newAccountBalanceChange;
-            if (newAccountBalance < 0) {
-                return res.status(400).json(
-                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${newAccount._id}`))
-                );
+            if (newAccount.accountType === "credit_card") {
+                // For credit cards, check if new balance would exceed limit
+                if (newAccountBalance > newAccount.limit) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${newAccount._id}`))
+                    );
+                }
+            } else {
+                // For regular accounts, check if balance would go negative
+                if (newAccountBalance < 0) {
+                    return res.status(400).json(
+                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${newAccount._id}`))
+                    );
+                }
             }
             await Account.findByIdAndUpdate(
                 newAccount._id,
@@ -587,28 +707,36 @@ const getTransactionSummary = async (req, res) => {
         const prevMonthEndDate = new Date(queryStartDate);
         prevMonthEndDate.setDate(prevMonthEndDate.getDate() - 1);
 
-        // Get transactions for the current period with populated category information
+        // Get transactions for the current period with populated category and account information
         const transactions = await Transaction.find({
             userId,
             date: { $gte: queryStartDate, $lte: queryEndDate }
-        }).populate('categoryId', 'name');
+        }).populate('categoryId', 'name')
+          .populate('accountId', 'accountName accountType');
 
         // Get transactions for the previous month to calculate savings
         const prevMonthTransactions = await Transaction.find({
             userId,
             date: { $gte: prevMonthStartDate, $lte: prevMonthEndDate }
-        });
+        }).populate('accountId', 'accountType');
 
         // Calculate current period summary
         let totalIncome = 0;
         let totalExpense = 0;
         let categoryWiseExpense = {};
         let categoryWiseIncome = {};
+        let creditCardExpenses = 0;
+        let creditCardPayments = 0;
 
         // Process current period transactions
         transactions.forEach(transaction => {
+            const isCreditCard = transaction.accountId?.accountType === "credit_card";
+            
             if (transaction.transactionType === "credit") {
                 totalIncome += transaction.amount;
+                if (isCreditCard) {
+                    creditCardPayments += transaction.amount;
+                }
                 if (transaction.categoryId) {
                     const categoryName = transaction.categoryId.name || "Unknown";
                     if (!categoryWiseIncome[categoryName]) {
@@ -618,6 +746,9 @@ const getTransactionSummary = async (req, res) => {
                 }
             } else if (transaction.transactionType === "debit") {
                 totalExpense += transaction.amount;
+                if (isCreditCard) {
+                    creditCardExpenses += transaction.amount;
+                }
                 if (transaction.categoryId) {
                     const categoryName = transaction.categoryId.name || "Unknown";
                     if (!categoryWiseExpense[categoryName]) {
@@ -631,13 +762,25 @@ const getTransactionSummary = async (req, res) => {
         // Calculate previous month's savings (net amount)
         let prevMonthIncome = 0;
         let prevMonthExpense = 0;
+        let prevMonthCreditCardExpenses = 0;
+        let prevMonthCreditCardPayments = 0;
+
         prevMonthTransactions.forEach(transaction => {
+            const isCreditCard = transaction.accountId?.accountType === "credit_card";
+            
             if (transaction.transactionType === "credit") {
                 prevMonthIncome += transaction.amount;
+                if (isCreditCard) {
+                    prevMonthCreditCardPayments += transaction.amount;
+                }
             } else if (transaction.transactionType === "debit") {
                 prevMonthExpense += transaction.amount;
+                if (isCreditCard) {
+                    prevMonthCreditCardExpenses += transaction.amount;
+                }
             }
         });
+
         const lastMonthSavings = prevMonthIncome - prevMonthExpense;
 
         // Format category-wise data for response
@@ -668,6 +811,10 @@ const getTransactionSummary = async (req, res) => {
                 totalExpense,
                 netAmount,
                 lastMonthSavings,
+                creditCardExpenses,
+                creditCardPayments,
+                prevMonthCreditCardExpenses,
+                prevMonthCreditCardPayments,
                 categoryWiseExpense: formattedCategoryWiseExpense,
                 categoryWiseIncome: formattedCategoryWiseIncome
             }, "Transaction summary fetched successfully")
@@ -775,12 +922,15 @@ interface GroupedData {
     date: string;
     income: number;
     expense: number;
+    creditCardExpenses: number;
+    creditCardPayments: number;
     transactions: Array<{
         id: string;
         type: string;
         amount: number;
         category: string;
         account: string;
+        accountType: string;
         date: Date;
         description: string;
     }>;
@@ -848,7 +998,7 @@ const getIncomeExpenseSummary = async (req, res) => {
         // Fetch transactions
         const transactions = await Transaction.find(query)
             .populate("categoryId", "name")
-            .populate("accountId", "accountName")
+            .populate("accountId", "accountName accountType")
             .sort({ date: 1 });
 
         if (!transactions.length) {
@@ -872,6 +1022,7 @@ const getIncomeExpenseSummary = async (req, res) => {
         transactions.forEach((transaction) => {
             let key;
             const transactionDate = new Date(transaction.date);
+            const isCreditCard = transaction.accountId?.accountType === "credit_card";
 
             if (filterType === "daily") {
                 key = transactionDate.toISOString().split("T")[0];
@@ -888,14 +1039,22 @@ const getIncomeExpenseSummary = async (req, res) => {
                     date: key,
                     income: 0,
                     expense: 0,
+                    creditCardExpenses: 0,
+                    creditCardPayments: 0,
                     transactions: []
                 };
             }
 
             if (transaction.transactionType === "credit") {
                 groupedData[key].income += transaction.amount;
+                if (isCreditCard) {
+                    groupedData[key].creditCardPayments += transaction.amount;
+                }
             } else if (transaction.transactionType === "debit") {
                 groupedData[key].expense += transaction.amount;
+                if (isCreditCard) {
+                    groupedData[key].creditCardExpenses += transaction.amount;
+                }
             }
 
             // Add transaction details to the group
@@ -905,6 +1064,7 @@ const getIncomeExpenseSummary = async (req, res) => {
                 amount: transaction.amount,
                 category: transaction.categoryId?.name || "Uncategorized",
                 account: transaction.accountId?.accountName || "Unknown",
+                accountType: transaction.accountId?.accountType || "Unknown",
                 date: transaction.date,
                 description: transaction.description
             });
@@ -1005,11 +1165,22 @@ const transferMoney = async (req, res) => {
             );
         }
 
-        // Check if source account has sufficient balance
-        if (sourceAccount.balance < amount) {
-            return res.status(400).json(
-                new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in source account: ${sourceAccountId}`))
-            );
+        // Check if source account has sufficient balance/credit
+        if (sourceAccount.accountType === "credit_card") {
+            // For credit cards, check if there's enough available credit
+            const availableCredit = sourceAccount.limit - sourceAccount.balance;
+            if (availableCredit < amount) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Insufficient available credit", new Error(`Insufficient available credit in source account: ${sourceAccountId}`))
+                );
+            }
+        } else {
+            // For regular accounts, check if there's enough balance
+            if (sourceAccount.balance < amount) {
+                return res.status(400).json(
+                    new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in source account: ${sourceAccountId}`))
+                );
+            }
         }
 
         // Determine the category to use
@@ -1078,32 +1249,42 @@ const transferMoney = async (req, res) => {
         });
 
         // Update account balances
-        // For source account (always debit)
-        const updatedSourceAccount = await Account.findByIdAndUpdate(
-            sourceAccountId,
-            { balance: sourceAccount.balance - amount },
-            { new: true }
-        );
-
-        // For destination account (always credit)
-        // Special handling for credit_card accounts
+        let updatedSourceAccount;
         let updatedDestinationAccount;
+
+        // Update source account (always debit)
+        if (sourceAccount.accountType === "credit_card") {
+            // For credit cards, increase balance (debt) for debit
+            updatedSourceAccount = await Account.findByIdAndUpdate(
+                sourceAccountId,
+                { balance: sourceAccount.balance + amount },
+                { new: true }
+            );
+        } else {
+            // For regular accounts, decrease balance for debit
+            updatedSourceAccount = await Account.findByIdAndUpdate(
+                sourceAccountId,
+                { balance: sourceAccount.balance - amount },
+                { new: true }
+            );
+        }
+
+        // Update destination account (always credit)
         if (destinationAccount.accountType === "credit_card") {
-            // For credit cards, a credit transaction reduces the balance (which is typically negative)
-            // Also check if the transaction would exceed the credit limit
-            const newBalance = destinationAccount.balance - amount;
-            if (Math.abs(newBalance) > destinationAccount.limit) {
+            // For credit cards, decrease balance (debt) for credit
+            // Check if there's enough debt to pay
+            if (destinationAccount.balance < amount) {
                 return res.status(400).json(
-                    new ApiResponse(400, undefined, "Transaction would exceed credit card limit")
+                    new ApiResponse(400, undefined, "Insufficient balance to pay in destination credit card", new Error(`Insufficient balance to pay in destination credit card: ${destinationAccountId}`))
                 );
             }
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
-                { balance: newBalance },
+                { balance: destinationAccount.balance - amount },
                 { new: true }
             );
         } else {
-            // For other account types, a credit transaction increases the balance
+            // For regular accounts, increase balance for credit
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
                 { balance: destinationAccount.balance + amount },
