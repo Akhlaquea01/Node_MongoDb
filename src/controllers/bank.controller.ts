@@ -151,9 +151,13 @@ const getAccount = asyncHandler(async (req, res) => {
 });
 
 const createTransaction = async (req, res) => {
-    const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = req.body;
-    const userId = req.user._id;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
+        const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = req.body;
+        const userId = req.user._id;
+
         // Create new transaction
         const newTransaction = new Transaction({
             userId,
@@ -169,9 +173,12 @@ const createTransaction = async (req, res) => {
             budgetId,
             date: date ? new Date(date) : new Date() // Use provided date or current date
         });
-        const updatedAccount = await Account.findById(accountId);
+
+        const updatedAccount = await Account.findById(accountId).session(session);
 
         if (!updatedAccount) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json(
                 new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
             );
@@ -185,6 +192,8 @@ const createTransaction = async (req, res) => {
             if (transactionType === "debit") {
                 // For debit, check if new balance would exceed limit
                 if (newBalance + amount > updatedAccount.limit) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
                     );
@@ -193,6 +202,8 @@ const createTransaction = async (req, res) => {
             } else if (transactionType === "credit") {
                 // For credit, check if there's enough balance to pay
                 if (newBalance < amount) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
                     );
@@ -203,6 +214,8 @@ const createTransaction = async (req, res) => {
             // For regular accounts
             if (transactionType === "debit") {
                 if (newBalance < amount) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
                     );
@@ -217,10 +230,10 @@ const createTransaction = async (req, res) => {
         const updatedAccountBalance = await Account.findByIdAndUpdate(
             accountId,
             { balance: newBalance },
-            { new: true }
+            { new: true, session }
         );
 
-        await newTransaction.save();
+        await newTransaction.save({ session });
 
         // Handle budget updates for debit transactions
         if (transactionType === "debit") {
@@ -230,11 +243,18 @@ const createTransaction = async (req, res) => {
                 budgetId,
                 newTransaction.date
             );
-            await updateBudgetSpent(budget, amount);
+            if (budget) {
+                await updateBudgetSpent(budget, amount);
+            }
         }
+
+        await session.commitTransaction();
+        session.endSession();
 
         return res.status(201).json(new ApiResponse(201, { transaction: newTransaction }, "Transaction created successfully"));
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -242,15 +262,20 @@ const createTransaction = async (req, res) => {
 };
 
 const createMultipleTransactions = async (req, res) => {
-    const { transactions } = req.body; // Expecting an array of transactions
-
-    if (!Array.isArray(transactions) || transactions.length === 0) {
-        return res.status(400).json(
-            new ApiResponse(400, undefined, "Invalid input", new Error("Transaction Array is required"))
-        );
-    }
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
+        const { transactions } = req.body; // Expecting an array of transactions
+
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Invalid input", new Error("Transaction Array is required"))
+            );
+        }
+
         const savedTransactions = [];
         const budgetUpdates = [];
 
@@ -273,9 +298,11 @@ const createMultipleTransactions = async (req, res) => {
                 date: date ? new Date(date) : new Date() // Use provided date or current date
             });
 
-            const updatedAccount = await Account.findById(accountId);
+            const updatedAccount = await Account.findById(accountId).session(session);
 
             if (!updatedAccount) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(404).json(
                     new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
                 );
@@ -289,6 +316,8 @@ const createMultipleTransactions = async (req, res) => {
                 if (transactionType === "debit") {
                     // For debit, check if new balance would exceed limit
                     if (newBalance + amount > updatedAccount.limit) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
                         );
@@ -297,6 +326,8 @@ const createMultipleTransactions = async (req, res) => {
                 } else if (transactionType === "credit") {
                     // For credit, check if there's enough balance to pay
                     if (newBalance < amount) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
                         );
@@ -307,6 +338,8 @@ const createMultipleTransactions = async (req, res) => {
                 // For regular accounts
                 if (transactionType === "debit") {
                     if (newBalance < amount) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
                         );
@@ -321,9 +354,10 @@ const createMultipleTransactions = async (req, res) => {
             const updatedAccountBalance = await Account.findByIdAndUpdate(
                 accountId,
                 { balance: newBalance },
-                { new: true }
+                { new: true, session }
             );
-            await newTransaction.save();
+
+            await newTransaction.save({ session });
             savedTransactions.push(newTransaction);
 
             // Handle budget updates for debit transactions
@@ -343,8 +377,13 @@ const createMultipleTransactions = async (req, res) => {
         // Execute all budget updates in parallel
         await Promise.all(budgetUpdates);
 
+        await session.commitTransaction();
+        session.endSession();
+
         return res.status(201).json(new ApiResponse(201, { transactions: savedTransactions }, "Transactions created successfully"));
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -354,16 +393,21 @@ const createMultipleTransactions = async (req, res) => {
 
 
 const updateTransaction = async (req, res) => {
-    const { transactionId } = req.params;
-    const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date, accountId } = req.body;
-    let oldTransaction;
-    let updatedTransaction;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
+        const { transactionId } = req.params;
+        const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date, accountId } = req.body;
+        let oldTransaction;
+        let updatedTransaction;
+
         // Find the existing transaction to check the old category and amount
-        oldTransaction = await Transaction.findById(transactionId).populate('accountId');
+        oldTransaction = await Transaction.findById(transactionId).populate('accountId').session(session);
 
         if (!oldTransaction) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json(
                 new ApiResponse(400, undefined, "Transaction not found", new Error("Transaction with the given ID does not exist"))
             );
@@ -375,8 +419,10 @@ const updateTransaction = async (req, res) => {
         // If account is being changed, validate the new account
         let newAccount;
         if (accountId && accountId.toString() !== oldAccount._id.toString()) {
-            newAccount = await Account.findById(accountId);
+            newAccount = await Account.findById(accountId).session(session);
             if (!newAccount) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(404).json(
                     new ApiResponse(404, undefined, "New account not found", new Error(`Account not found with accountId:${accountId}`))
                 );
@@ -412,6 +458,8 @@ const updateTransaction = async (req, res) => {
                 if (transactionType === "debit") {
                     // Check if new balance would exceed limit
                     if (newAccount.balance + amount > newAccount.limit) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
                         );
@@ -420,6 +468,8 @@ const updateTransaction = async (req, res) => {
                 } else if (transactionType === "credit") {
                     // Check if there's enough balance to pay
                     if (newAccount.balance < amount) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
                         );
@@ -441,6 +491,8 @@ const updateTransaction = async (req, res) => {
                 if (transactionType === "debit") {
                     // Check if new balance would exceed limit
                     if (oldAccount.balance + amount > oldAccount.limit) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${oldAccount._id}`))
                         );
@@ -449,6 +501,8 @@ const updateTransaction = async (req, res) => {
                 } else if (transactionType === "credit") {
                     // Check if there's enough balance to pay
                     if (oldAccount.balance < amount) {
+                        await session.abortTransaction();
+                        session.endSession();
                         return res.status(400).json(
                             new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${oldAccount._id}`))
                         );
@@ -471,6 +525,8 @@ const updateTransaction = async (req, res) => {
             if (oldAccount.accountType === "credit_card") {
                 // For credit cards, check if new balance would exceed limit
                 if (newOldAccountBalance > oldAccount.limit) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${oldAccount._id}`))
                     );
@@ -478,6 +534,8 @@ const updateTransaction = async (req, res) => {
             } else {
                 // For regular accounts, check if balance would go negative
                 if (newOldAccountBalance < 0) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${oldAccount._id}`))
                     );
@@ -486,7 +544,7 @@ const updateTransaction = async (req, res) => {
             await Account.findByIdAndUpdate(
                 oldAccount._id,
                 { balance: newOldAccountBalance },
-                { new: true }
+                { new: true, session }
             );
         }
 
@@ -495,6 +553,8 @@ const updateTransaction = async (req, res) => {
             if (newAccount.accountType === "credit_card") {
                 // For credit cards, check if new balance would exceed limit
                 if (newAccountBalance > newAccount.limit) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${newAccount._id}`))
                     );
@@ -502,6 +562,8 @@ const updateTransaction = async (req, res) => {
             } else {
                 // For regular accounts, check if balance would go negative
                 if (newAccountBalance < 0) {
+                    await session.abortTransaction();
+                    session.endSession();
                     return res.status(400).json(
                         new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${newAccount._id}`))
                     );
@@ -510,7 +572,7 @@ const updateTransaction = async (req, res) => {
             await Account.findByIdAndUpdate(
                 newAccount._id,
                 { balance: newAccountBalance },
-                { new: true }
+                { new: true, session }
             );
         }
 
@@ -530,7 +592,7 @@ const updateTransaction = async (req, res) => {
                 budgetId: budgetId || oldTransaction.budgetId,
                 accountId: accountId || oldTransaction.accountId
             },
-            { new: true }
+            { new: true, session }
         );
 
         // Handle budget updates
@@ -543,7 +605,9 @@ const updateTransaction = async (req, res) => {
                     oldTransaction.budgetId,
                     oldTransaction.date
                 );
-                await updateBudgetSpent(oldBudget, oldTransaction.amount, true);
+                if (oldBudget) {
+                    await updateBudgetSpent(oldBudget, oldTransaction.amount, true);
+                }
             }
 
             // If the new transaction is a debit, add its amount to the new budget
@@ -554,12 +618,19 @@ const updateTransaction = async (req, res) => {
                     budgetId || oldTransaction.budgetId,
                     updatedTransaction.date
                 );
-                await updateBudgetSpent(newBudget, amount || oldTransaction.amount);
+                if (newBudget) {
+                    await updateBudgetSpent(newBudget, amount || oldTransaction.amount);
+                }
             }
         }
 
+        await session.commitTransaction();
+        session.endSession();
+
         return res.status(200).json(new ApiResponse(200, { transaction: updatedTransaction }, "Transaction updated successfully"));
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -1145,21 +1216,29 @@ const getInvestmentsByUser = async (req, res) => {
  * Categorizes the debit transaction as "Utilities & Bills" for budget tracking
  */
 const transferMoney = async (req, res) => {
+    // Start a MongoDB session for transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { sourceAccountId, destinationAccountId, amount, description, tags, isBillPayment, categoryId } = req.body;
         const userId = req.user._id;
 
         // Validate accounts exist and belong to the user
-        const sourceAccount = await Account.findOne({ _id: sourceAccountId, userId });
-        const destinationAccount = await Account.findOne({ _id: destinationAccountId, userId });
+        const sourceAccount = await Account.findOne({ _id: sourceAccountId, userId }).session(session);
+        const destinationAccount = await Account.findOne({ _id: destinationAccountId, userId }).session(session);
 
         if (!sourceAccount) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json(
                 new ApiResponse(404, undefined, "Source account not found", new Error(`Source account not found with ID: ${sourceAccountId}`))
             );
         }
 
         if (!destinationAccount) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json(
                 new ApiResponse(404, undefined, "Destination account not found", new Error(`Destination account not found with ID: ${destinationAccountId}`))
             );
@@ -1170,6 +1249,8 @@ const transferMoney = async (req, res) => {
             // For credit cards, check if there's enough available credit
             const availableCredit = sourceAccount.limit - sourceAccount.balance;
             if (availableCredit < amount) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(400).json(
                     new ApiResponse(400, undefined, "Insufficient available credit", new Error(`Insufficient available credit in source account: ${sourceAccountId}`))
                 );
@@ -1177,6 +1258,8 @@ const transferMoney = async (req, res) => {
         } else {
             // For regular accounts, check if there's enough balance
             if (sourceAccount.balance < amount) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(400).json(
                     new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in source account: ${sourceAccountId}`))
                 );
@@ -1190,17 +1273,17 @@ const transferMoney = async (req, res) => {
         if (!transactionCategoryId) {
             if (isBillPayment) {
                 // For bill payments, try to find "Utilities & Bills" category
-                const billPaymentCategory = await Category.findOne({ name: "Utilities & Bills", isDefault: true });
+                const billPaymentCategory = await Category.findOne({ name: "Utilities & Bills", isDefault: true }).session(session);
                 if (billPaymentCategory) {
                     transactionCategoryId = billPaymentCategory._id;
                 }
             } else {
                 // For regular transfers, try to find "Transfer" category or fall back to "Utilities & Bills"
-                const transferCategory = await Category.findOne({ name: "Transfer", isDefault: true });
+                const transferCategory = await Category.findOne({ name: "Transfer", isDefault: true }).session(session);
                 if (transferCategory) {
                     transactionCategoryId = transferCategory._id;
                 } else {
-                    const defaultCategory = await Category.findOne({ name: "Others", isDefault: true });
+                    const defaultCategory = await Category.findOne({ name: "Others", isDefault: true }).session(session);
                     if (defaultCategory) {
                         transactionCategoryId = defaultCategory._id;
                     }
@@ -1210,6 +1293,8 @@ const transferMoney = async (req, res) => {
 
         // If still no category found, return an error
         if (!transactionCategoryId) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json(
                 new ApiResponse(400, undefined, "Category required", new Error("No valid category found. Please provide a categoryId in the request."))
             );
@@ -1258,43 +1343,38 @@ const transferMoney = async (req, res) => {
             updatedSourceAccount = await Account.findByIdAndUpdate(
                 sourceAccountId,
                 { balance: sourceAccount.balance + amount },
-                { new: true }
+                { new: true, session }
             );
         } else {
             // For regular accounts, decrease balance for debit
             updatedSourceAccount = await Account.findByIdAndUpdate(
                 sourceAccountId,
                 { balance: sourceAccount.balance - amount },
-                { new: true }
+                { new: true, session }
             );
         }
 
         // Update destination account (always credit)
         if (destinationAccount.accountType === "credit_card") {
             // For credit cards, decrease balance (debt) for credit
-            // Check if there's enough debt to pay
-            if (destinationAccount.balance < amount) {
-                return res.status(400).json(
-                    new ApiResponse(400, undefined, "Insufficient balance to pay in destination credit card", new Error(`Insufficient balance to pay in destination credit card: ${destinationAccountId}`))
-                );
-            }
+            // No need to check balance for credit card payments
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
                 { balance: destinationAccount.balance - amount },
-                { new: true }
+                { new: true, session }
             );
         } else {
             // For regular accounts, increase balance for credit
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
                 { balance: destinationAccount.balance + amount },
-                { new: true }
+                { new: true, session }
             );
         }
 
         // Save both transactions
-        await debitTransaction.save();
-        await creditTransaction.save();
+        await debitTransaction.save({ session });
+        await creditTransaction.save({ session });
 
         // Handle budget updates for bill payments
         if (isBillPayment) {
@@ -1309,6 +1389,10 @@ const transferMoney = async (req, res) => {
             }
         }
 
+        // If everything is successful, commit the transaction
+        await session.commitTransaction();
+        session.endSession();
+
         return res.status(201).json(
             new ApiResponse(201, {
                 debitTransaction,
@@ -1318,6 +1402,10 @@ const transferMoney = async (req, res) => {
             }, "Money transferred successfully")
         );
     } catch (error) {
+        // If any error occurs, abort the transaction
+        await session.abortTransaction();
+        session.endSession();
+        
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
