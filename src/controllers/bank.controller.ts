@@ -241,10 +241,11 @@ const createTransaction = async (req, res) => {
                 userId,
                 categoryId,
                 budgetId,
-                newTransaction.date
+                newTransaction.date,
+                session
             );
             if (budget) {
-                await updateBudgetSpent(budget, amount);
+                await updateBudgetSpent(budget, amount, false, session);
             }
         }
 
@@ -366,10 +367,11 @@ const createMultipleTransactions = async (req, res) => {
                     userId,
                     categoryId,
                     budgetId,
-                    newTransaction.date
+                    newTransaction.date,
+                    session
                 );
                 if (budget) {
-                    budgetUpdates.push(updateBudgetSpent(budget, amount));
+                    budgetUpdates.push(updateBudgetSpent(budget, amount, false, session));
                 }
             }
         }
@@ -603,10 +605,11 @@ const updateTransaction = async (req, res) => {
                     oldTransaction.userId,
                     oldTransaction.categoryId,
                     oldTransaction.budgetId,
-                    oldTransaction.date
+                    oldTransaction.date,
+                    session
                 );
                 if (oldBudget) {
-                    await updateBudgetSpent(oldBudget, oldTransaction.amount, true);
+                    await updateBudgetSpent(oldBudget, oldTransaction.amount, true, session);
                 }
             }
 
@@ -616,10 +619,11 @@ const updateTransaction = async (req, res) => {
                     oldTransaction.userId,
                     categoryId || oldTransaction.categoryId,
                     budgetId || oldTransaction.budgetId,
-                    updatedTransaction.date
+                    updatedTransaction.date,
+                    session
                 );
                 if (newBudget) {
-                    await updateBudgetSpent(newBudget, amount || oldTransaction.amount);
+                    await updateBudgetSpent(newBudget, amount || oldTransaction.amount, false, session);
                 }
             }
         }
@@ -1224,6 +1228,24 @@ const transferMoney = async (req, res) => {
         const { sourceAccountId, destinationAccountId, amount, description, tags, isBillPayment, categoryId } = req.body;
         const userId = req.user._id;
 
+        // Block negative/zero amounts
+        if (!amount || amount <= 0) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Amount must be greater than zero", new Error("Invalid transfer amount"))
+            );
+        }
+
+        // Block same-account transfers
+        if (sourceAccountId === destinationAccountId) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(
+                new ApiResponse(400, undefined, "Cannot transfer to the same account", new Error("Source and destination accounts must be different"))
+            );
+        }
+
         // Validate accounts exist and belong to the user
         const sourceAccount = await Account.findOne({ _id: sourceAccountId, userId }).session(session);
         const destinationAccount = await Account.findOne({ _id: destinationAccountId, userId }).session(session);
@@ -1246,7 +1268,7 @@ const transferMoney = async (req, res) => {
 
         // Check if source account has sufficient balance/credit
         if (sourceAccount.accountType === "credit_card") {
-            // For credit cards, check if there's enough available credit
+            // For credit cards, check if there's enough available credit (for cash advance)
             const availableCredit = sourceAccount.limit - sourceAccount.balance;
             if (availableCredit < amount) {
                 await session.abortTransaction();
@@ -1278,7 +1300,7 @@ const transferMoney = async (req, res) => {
                     transactionCategoryId = billPaymentCategory._id;
                 }
             } else {
-                // For regular transfers, try to find "Transfer" category or fall back to "Utilities & Bills"
+                // For regular transfers, try to find "Transfer" category or fall back to "Others"
                 const transferCategory = await Category.findOne({ name: "Transfer", isDefault: true }).session(session);
                 if (transferCategory) {
                     transactionCategoryId = transferCategory._id;
@@ -1337,9 +1359,9 @@ const transferMoney = async (req, res) => {
         let updatedSourceAccount;
         let updatedDestinationAccount;
 
-        // Update source account (always debit)
+        // --- Source Account (always debit) ---
         if (sourceAccount.accountType === "credit_card") {
-            // For credit cards, increase balance (debt) for debit
+            // For credit cards, increase balance (debt) for debit (cash advance)
             updatedSourceAccount = await Account.findByIdAndUpdate(
                 sourceAccountId,
                 { balance: sourceAccount.balance + amount },
@@ -1354,10 +1376,9 @@ const transferMoney = async (req, res) => {
             );
         }
 
-        // Update destination account (always credit)
+        // --- Destination Account (always credit) ---
         if (destinationAccount.accountType === "credit_card") {
-            // For credit cards, decrease balance (debt) for credit
-            // No need to check balance for credit card payments
+            // For credit cards, decrease balance (debt) for credit (payment)
             updatedDestinationAccount = await Account.findByIdAndUpdate(
                 destinationAccountId,
                 { balance: destinationAccount.balance - amount },
@@ -1382,10 +1403,11 @@ const transferMoney = async (req, res) => {
                 userId,
                 transactionCategoryId,
                 null,
-                debitTransaction.date
+                debitTransaction.date,
+                session
             );
             if (budget) {
-                await updateBudgetSpent(budget, amount);
+                await updateBudgetSpent(budget, amount, false, session);
             }
         }
 

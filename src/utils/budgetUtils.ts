@@ -7,19 +7,21 @@ import mongoose from "mongoose";
  * @param categoryId - The category ID
  * @param budgetId - Optional specific budget ID
  * @param date - The transaction date
+ * @param session - Optional mongoose session for transaction
  * @returns The most appropriate budget or null if none found
  */
 export const findAppropriateBudget = async (
     userId: mongoose.Types.ObjectId,
     categoryId: mongoose.Types.ObjectId,
     budgetId?: mongoose.Types.ObjectId,
-    date: Date = new Date()
+    date: Date = new Date(),
+    session?: mongoose.ClientSession
 ) => {
     let budget = null;
 
     // Case 1: If budgetId is provided, use that specific budget
     if (budgetId) {
-        budget = await Budget.findById(budgetId);
+        budget = await Budget.findById(budgetId).session(session || null);
         if (budget) return budget;
     }
 
@@ -31,14 +33,14 @@ export const findAppropriateBudget = async (
             categoryId,
             startDate: { $lte: date },
             endDate: { $gte: date }
-        });
+        }).session(session || null);
 
         // If no budget covers the date, find the most recent one
         if (!budget) {
             budget = await Budget.findOne({
                 userId,
                 categoryId
-            }).sort({ endDate: -1 });
+            }).sort({ endDate: -1 }).session(session || null);
         }
     }
 
@@ -49,14 +51,14 @@ export const findAppropriateBudget = async (
             name: "Others",
             startDate: { $lte: date },
             endDate: { $gte: date }
-        });
+        }).session(session || null);
 
         // If no active Others budget found, get the most recent Others budget
         if (!budget) {
             budget = await Budget.findOne({
                 userId,
                 name: "Others"
-            }).sort({ endDate: -1 });
+            }).sort({ endDate: -1 }).session(session || null);
         }
     }
 
@@ -68,14 +70,21 @@ export const findAppropriateBudget = async (
  * @param budget - The budget to update
  * @param amount - The amount to add/subtract
  * @param isSubtract - Whether to subtract the amount (true) or add it (false)
+ * @param session - Optional mongoose session for transaction
  */
 export const updateBudgetSpent = async (
     budget: any,
     amount: number,
-    isSubtract: boolean = false
+    isSubtract: boolean = false,
+    session?: mongoose.ClientSession
 ) => {
     if (budget) {
-        budget.spent += isSubtract ? -amount : amount;
-        await budget.save();
+        const newSpent = budget.spent + (isSubtract ? -amount : amount);
+        await Budget.findByIdAndUpdate(
+            budget._id,
+            { spent: newSpent },
+            { session }
+        );
+        budget.spent = newSpent; // keep in-memory object in sync if needed
     }
 }; 
