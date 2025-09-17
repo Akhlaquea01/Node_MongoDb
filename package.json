@@ -12,7 +12,9 @@
     "workers:timing": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/workers/timing-demo.ts",
     "workers:server:blocking": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/workers/server-demo.ts --blocking",
     "workers:server:non-blocking": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/workers/server-demo.ts --non-blocking",
-    "workers:server:test": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/workers/server-demo.ts --test"
+    "workers:server:test": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/workers/server-demo.ts --test",
+    "cluster:basic": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/cluster/basic-cluster.ts",
+    "cluster:server": "cross-env NODE_OPTIONS=\"--import=tsx\" node src/cluster/server-demo.ts"
   },
   "keywords": [
     "javascript",
