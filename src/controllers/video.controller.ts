@@ -253,21 +253,74 @@ const downloadVideoById = async (req, res, next) => {
         await mkdirp(downloadDirectory);
 
         // Define the local file path to save the downloaded video
-        const localFilePath = `${downloadDirectory}/${video.title}.mp4`;
+        const localFilePath = `${downloadDirectory}/${video.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
 
-        // Download the video from Cloudinary and save it locally
-        await downloadFile(video.videoFile, localFilePath);
+        try {
+            // Validate video URL before attempting download
+            if (!video.videoFile || typeof video.videoFile !== 'string') {
+                return res.status(400).json({ 
+                    message: "Video file URL is invalid or missing",
+                    videoId: videoId 
+                });
+            }
 
-        console.log("Video downloaded successfully");
+            // Download the video from Cloudinary and save it locally
+            await downloadFile(video.videoFile, localFilePath);
 
-        // Set headers for the download response
-        res.setHeader("Content-Type", "video/mp4");
-        res.setHeader("Content-Disposition", `attachment; filename="${video.title}.mp4"`);
+            // Check if file exists after download
+            if (!fs.existsSync(localFilePath)) {
+                throw new Error("File was not downloaded successfully");
+            }
 
-        // Create a read stream from the local file and pipe it to the response
-        const stream = fs.createReadStream(localFilePath);
-        stream.pipe(res);
+            // Set headers for the download response
+            res.setHeader("Content-Type", "video/mp4");
+            res.setHeader("Content-Disposition", `attachment; filename="${video.title}.mp4"`);
+
+            // Create a read stream from the local file and pipe it to the response
+            const stream = fs.createReadStream(localFilePath);
+            
+            // Handle stream errors
+            stream.on('error', (err) => {
+                if (!res.headersSent) {
+                    res.status(500).json({ message: "Error reading file" });
+                }
+            });
+
+            // Clean up the file after sending
+            stream.on('end', () => {
+                fs.unlink(localFilePath, (err) => {
+                    if (err) console.error('Error deleting temp file:', err);
+                });
+            });
+
+            stream.pipe(res);
+        } catch (downloadError) {
+            // Provide specific error messages based on the error type
+            if (downloadError.message.includes('HTTP 404')) {
+                return res.status(404).json({ 
+                    message: "Video file not found on server. The video may have been deleted or moved.",
+                    videoId: videoId,
+                    videoUrl: video.videoFile
+                });
+            } else if (downloadError.message.includes('Network error')) {
+                return res.status(503).json({ 
+                    message: "Unable to reach video server. Please try again later.",
+                    videoId: videoId
+                });
+            } else if (downloadError.message.includes('Invalid video URL')) {
+                return res.status(400).json({ 
+                    message: "Video file URL is invalid",
+                    videoId: videoId
+                });
+            } else {
+                return res.status(500).json({ 
+                    message: "Error downloading video: " + downloadError.message,
+                    videoId: videoId
+                });
+            }
+        }
     } catch (error) {
+        console.error("Error in downloadVideoById:", error);
         next(error);
     }
 };

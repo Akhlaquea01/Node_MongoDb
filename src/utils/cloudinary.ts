@@ -83,24 +83,98 @@ const getAllItemsFromCloudinary = async (options:any = {}) => {
     }
 };
 
+// Function to validate Cloudinary URL format
+const isValidCloudinaryUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Check if it's a valid Cloudinary URL format
+    const cloudinaryPattern = /^https?:\/\/res\.cloudinary\.com\/[^\/]+\/(image|video|raw|auto)\/upload\/.*$/;
+    return cloudinaryPattern.test(url);
+};
+
+// Function to check if a Cloudinary URL exists
+const checkCloudinaryUrlExists = async (url) => {
+    try {
+        const response = await axios.head(url, { timeout: 10000 });
+        return response.status === 200;
+    } catch (error) {
+        return false;
+    }
+};
+
+// Function to attempt to fix corrupted Cloudinary URLs
+const attemptUrlFix = (url) => {
+    if (!url) return null;
+    
+    // Check if URL is missing protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return `https://${url}`;
+    }
+    
+    // Check if URL is missing the res.cloudinary.com part
+    if (url.includes('cloudinary.com') && !url.includes('res.cloudinary.com')) {
+        return url.replace('cloudinary.com', 'res.cloudinary.com');
+    }
+    
+    return url;
+};
+
 const downloadFile = async (videoUrl, localFilePath) => {
     try {
+        // Validate URL
+        if (!videoUrl || typeof videoUrl !== 'string') {
+            throw new Error('Invalid video URL provided');
+        }
+
+        // Check if it's a valid Cloudinary URL
+        if (!isValidCloudinaryUrl(videoUrl)) {
+            const fixedUrl = attemptUrlFix(videoUrl);
+            if (fixedUrl && fixedUrl !== videoUrl) {
+                videoUrl = fixedUrl;
+                
+                if (!isValidCloudinaryUrl(videoUrl)) {
+                    throw new Error('Invalid Cloudinary URL format. Expected format: https://res.cloudinary.com/...');
+                }
+            } else {
+                throw new Error('Invalid Cloudinary URL format. Expected format: https://res.cloudinary.com/...');
+            }
+        }
+
+        // Check if URL exists before attempting download
+        const urlExists = await checkCloudinaryUrlExists(videoUrl);
+        if (!urlExists) {
+            throw new Error('Video file not found on Cloudinary. The video may have been deleted or moved.');
+        }
+
         // Make a GET request to the video URL
-        const response = await axios.get(videoUrl, { responseType: 'stream' });
+        const response = await axios.get(videoUrl, { 
+            responseType: 'stream',
+            timeout: 30000,
+            validateStatus: function (status) {
+                return status >= 200 && status < 300;
+            }
+        });
 
         // Create a writable stream to save the file
         const writer = fs.createWriteStream(localFilePath);
 
         // Pipe the response data to the writable stream
         response.data.pipe(writer);
-        console.log(response,'response');
+        
+        // Return a promise that resolves when the download is complete
         return new Promise((resolve, reject) => {
-            writer.on('finish', () => resolve(null));
+            writer.on('finish', () => resolve(localFilePath));
             writer.on('error', (err) => reject(err));
+            response.data.on('error', (err) => reject(err));
         });
     } catch (error) {
-        console.error("Error downloading video:", error);
-        return null;
+        if (error.response) {
+            throw new Error(`Video not found or inaccessible (HTTP ${error.response.status})`);
+        } else if (error.request) {
+            throw new Error("Network error: Unable to reach video server");
+        } else {
+            throw error;
+        }
     }
 };
 
