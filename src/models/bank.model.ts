@@ -68,11 +68,6 @@ const TransactionSchema = new mongoose.Schema(
             type: [String],
             default: null,
         },
-        budgetId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Budget", // Links the transaction to a specific budget.
-            default: null,
-        },
         sharedWith: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"

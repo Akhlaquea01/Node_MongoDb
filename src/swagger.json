@@ -1579,10 +1579,10 @@
         }
       }
     },
-    "/budgets/getAll": {
-      "get": {
-        "summary": "Get all budgets for the current user",
-        "tags": ["Budget"],
+    "/bank/create": {
+      "post": {
+        "summary": "Create a new bank account",
+        "tags": ["Bank"],
         "responses": {
           "200": {
             "description": "Budgets retrieved successfully",

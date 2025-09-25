@@ -2,7 +2,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Account, Transaction } from "../models/bank.model.js";
 import { Category } from "../models/category.model.js";
-import { findAppropriateBudget, updateBudgetSpent } from "../utils/budgetUtils.js";
 import mongoose from "mongoose";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -155,7 +154,7 @@ const createTransaction = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = req.body;
+        const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date } = req.body;
         const userId = req.user._id;
 
         // Create new transaction
@@ -170,7 +169,6 @@ const createTransaction = async (req, res) => {
             isRecurring,
             location,
             sharedWith,
-            budgetId,
             date: date ? new Date(date) : new Date() // Use provided date or current date
         });
 
@@ -199,7 +197,7 @@ const createTransaction = async (req, res) => {
                     );
                 }
                 newBalance += amount; // Increase balance (debt) for debit
-            } else if (transactionType === "credit") {
+            } else if (transactionType === "debit") {
                 // For credit, check if there's enough balance to pay
                 if (newBalance < amount) {
                     await session.abortTransaction();
@@ -235,19 +233,6 @@ const createTransaction = async (req, res) => {
 
         await newTransaction.save({ session });
 
-        // Handle budget updates for debit transactions
-        if (transactionType === "debit") {
-            const budget = await findAppropriateBudget(
-                userId,
-                categoryId,
-                budgetId,
-                newTransaction.date,
-                session
-            );
-            if (budget) {
-                await updateBudgetSpent(budget, amount, false, session);
-            }
-        }
 
         await session.commitTransaction();
         session.endSession();
@@ -278,10 +263,9 @@ const createMultipleTransactions = async (req, res) => {
         }
 
         const savedTransactions = [];
-        const budgetUpdates = [];
 
         for (const txn of transactions) {
-            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date } = txn;
+            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date } = txn;
 
             // Create new transaction
             const newTransaction = new Transaction({
@@ -295,7 +279,6 @@ const createMultipleTransactions = async (req, res) => {
                 isRecurring,
                 location,
                 sharedWith,
-                budgetId,
                 date: date ? new Date(date) : new Date() // Use provided date or current date
             });
 
@@ -361,23 +344,8 @@ const createMultipleTransactions = async (req, res) => {
             await newTransaction.save({ session });
             savedTransactions.push(newTransaction);
 
-            // Handle budget updates for debit transactions
-            if (transactionType === "debit") {
-                const budget = await findAppropriateBudget(
-                    userId,
-                    categoryId,
-                    budgetId,
-                    newTransaction.date,
-                    session
-                );
-                if (budget) {
-                    budgetUpdates.push(updateBudgetSpent(budget, amount, false, session));
-                }
-            }
         }
 
-        // Execute all budget updates in parallel
-        await Promise.all(budgetUpdates);
 
         await session.commitTransaction();
         session.endSession();
@@ -400,7 +368,7 @@ const updateTransaction = async (req, res) => {
 
     try {
         const { transactionId } = req.params;
-        const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, budgetId, date, accountId } = req.body;
+        const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date, accountId } = req.body;
         let oldTransaction;
         let updatedTransaction;
 
@@ -591,42 +559,11 @@ const updateTransaction = async (req, res) => {
                 isRecurring: isRecurring !== undefined ? isRecurring : oldTransaction.isRecurring,
                 location: location || oldTransaction.location,
                 sharedWith: sharedWith || oldTransaction.sharedWith,
-                budgetId: budgetId || oldTransaction.budgetId,
                 accountId: accountId || oldTransaction.accountId
             },
             { new: true, session }
         );
 
-        // Handle budget updates
-        if (oldTransaction.transactionType === "debit" || transactionType === "debit") {
-            // If the old transaction was a debit, subtract its amount from the old budget
-            if (oldTransaction.transactionType === "debit") {
-                const oldBudget = await findAppropriateBudget(
-                    oldTransaction.userId,
-                    oldTransaction.categoryId,
-                    oldTransaction.budgetId,
-                    oldTransaction.date,
-                    session
-                );
-                if (oldBudget) {
-                    await updateBudgetSpent(oldBudget, oldTransaction.amount, true, session);
-                }
-            }
-
-            // If the new transaction is a debit, add its amount to the new budget
-            if (transactionType === "debit") {
-                const newBudget = await findAppropriateBudget(
-                    oldTransaction.userId,
-                    categoryId || oldTransaction.categoryId,
-                    budgetId || oldTransaction.budgetId,
-                    updatedTransaction.date,
-                    session
-                );
-                if (newBudget) {
-                    await updateBudgetSpent(newBudget, amount || oldTransaction.amount, false, session);
-                }
-            }
-        }
 
         await session.commitTransaction();
         session.endSession();
@@ -1217,7 +1154,7 @@ const getInvestmentsByUser = async (req, res) => {
  * Transfer money between accounts
  * Creates two transactions: one debit from source account and one credit to destination account
  * Updates account balances accordingly
- * Categorizes the debit transaction as "Utilities & Bills" for budget tracking
+ * Categorizes the debit transaction as "Utilities & Bills"
  */
 const transferMoney = async (req, res) => {
     // Start a MongoDB session for transaction
@@ -1399,19 +1336,6 @@ const transferMoney = async (req, res) => {
         await debitTransaction.save({ session });
         await creditTransaction.save({ session });
 
-        // Handle budget updates for bill payments
-        if (isBillPayment) {
-            const budget = await findAppropriateBudget(
-                userId,
-                transactionCategoryId,
-                null,
-                debitTransaction.date,
-                session
-            );
-            if (budget) {
-                await updateBudgetSpent(budget, amount, false, session);
-            }
-        }
 
         // If everything is successful, commit the transaction
         await session.commitTransaction();

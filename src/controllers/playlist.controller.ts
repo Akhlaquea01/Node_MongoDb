@@ -127,7 +127,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     //   console.log(req.user?._id);
 
 
-    if (!videoFound || !(videoFound.owner.toString() === req.user?._id.toString())) {
+    if (!videoFound ) {
         throw new ApiError(400, "Video not found while searching through videoid");
     }
 
