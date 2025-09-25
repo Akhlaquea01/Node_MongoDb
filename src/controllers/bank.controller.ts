@@ -1225,7 +1225,7 @@ const transferMoney = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { sourceAccountId, destinationAccountId, amount, description, tags, isBillPayment, categoryId } = req.body;
+        const { sourceAccountId, destinationAccountId, amount, description, tags, isBillPayment, categoryId, txnDate } = req.body;
         const userId = req.user._id;
 
         // Block negative/zero amounts
@@ -1337,7 +1337,8 @@ const transferMoney = async (req, res) => {
             isRecurring: false,
             location: [],
             sharedWith: [],
-            referenceId
+            referenceId,
+            date: txnDate ? new Date(txnDate) : new Date()
         });
 
         // Create credit transaction to destination account
@@ -1352,7 +1353,8 @@ const transferMoney = async (req, res) => {
             isRecurring: false,
             location: [],
             sharedWith: [],
-            referenceId
+            referenceId,
+            date: txnDate ? new Date(txnDate) : new Date()
         });
 
         // Update account balances
