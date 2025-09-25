@@ -38,7 +38,6 @@ const analyzeMonthlyTransactions = asyncHandler(async (req, res) => {
             date: txn.date,
             tags: txn.tags,
             accountType: txn.accountId?.accountType,
-            isRecurring: txn.isRecurring,
             description: txn.description
         }));
 
@@ -100,7 +99,6 @@ const getSmartSuggestions = asyncHandler(async (req, res) => {
             date: txn.date,
             tags: txn.tags,
             accountType: txn.accountId?.accountType,
-            isRecurring: txn.isRecurring,
             description: txn.description
         }));
 

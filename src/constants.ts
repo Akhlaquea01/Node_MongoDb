@@ -17,7 +17,6 @@ export const PROMPT_GET_TXNS_JSON = `Extract transactions from the following tex
                             "categoryId": "CATEGORY_ID",
                             "description": "Bought groceries",
                             "tags": ["food", "monthly"],
-                            "isRecurring": false,
                             "location": "Supermarket",
                             "sharedWith": ["1"]
                         },
@@ -29,7 +28,6 @@ export const PROMPT_GET_TXNS_JSON = `Extract transactions from the following tex
                             "categoryId": "CATEGORY_ID",
                             "description": "Salary",
                             "tags": ["salary", "monthly"],
-                            "isRecurring": true,
                             "location": "Office",
                             "sharedWith": []
                         }
@@ -42,7 +40,7 @@ export const PROMPT_GET_TXNS_JSON = `Extract transactions from the following tex
 export const ANALYZE_MONTHLY_TRANSACTION_DATA = `
 You are a personal finance assistant helping a user understand their spending and earnings over a specified date range.
 
-Here is the user's transaction data in JSON format. Each transaction contains detailed information such as amount, type (credit or debit), category, date, tags, account type, and whether it is recurring.
+Here is the user's transaction data in JSON format. Each transaction contains detailed information such as amount, type (credit or debit), category, date, tags, and account type.
 
 Analyze the data and return a structured JSON object titled “Where Your Money Went” that includes the following fields:
 
@@ -62,7 +60,7 @@ Analyze the data and return a structured JSON object titled “Where Your Money 
     "sources": [
       { "category": string, "amount": number }
     ],
-    "recurringIncome": string[]
+    "incomeSources": string[]
   },
   "accountUsage": {
     "byAccount": [
@@ -99,7 +97,7 @@ You are an intelligent financial assistant. Based on the user's transaction hist
 - Avoid unnecessary or impulsive spending
 - Improve financial management
 - Optimize account usage
-- Understand recurring or spike patterns
+- Understand spending patterns
 
 Return your results as a **structured JSON object** using the following format:
 

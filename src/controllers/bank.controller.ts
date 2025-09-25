@@ -154,7 +154,7 @@ const createTransaction = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date } = req.body;
+        const { accountId, transactionType, amount, categoryId, description, tags, location, sharedWith, date } = req.body;
         const userId = req.user._id;
 
         // Create new transaction
@@ -166,7 +166,6 @@ const createTransaction = async (req, res) => {
             categoryId,
             description,
             tags,
-            isRecurring,
             location,
             sharedWith,
             date: date ? new Date(date) : new Date() // Use provided date or current date
@@ -265,7 +264,7 @@ const createMultipleTransactions = async (req, res) => {
         const savedTransactions = [];
 
         for (const txn of transactions) {
-            const { userId, accountId, transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date } = txn;
+            const { userId, accountId, transactionType, amount, categoryId, description, tags, location, sharedWith, date } = txn;
 
             // Create new transaction
             const newTransaction = new Transaction({
@@ -276,7 +275,6 @@ const createMultipleTransactions = async (req, res) => {
                 categoryId,
                 description,
                 tags,
-                isRecurring,
                 location,
                 sharedWith,
                 date: date ? new Date(date) : new Date() // Use provided date or current date
@@ -368,7 +366,7 @@ const updateTransaction = async (req, res) => {
 
     try {
         const { transactionId } = req.params;
-        const { transactionType, amount, categoryId, description, tags, isRecurring, location, sharedWith, date, accountId } = req.body;
+        const { transactionType, amount, categoryId, description, tags, location, sharedWith, date, accountId } = req.body;
         let oldTransaction;
         let updatedTransaction;
 
@@ -556,7 +554,6 @@ const updateTransaction = async (req, res) => {
                 description: description || oldTransaction.description,
                 tags: tags || oldTransaction.tags,
                 date: date ? new Date(date) : new Date(oldTransaction.date),
-                isRecurring: isRecurring !== undefined ? isRecurring : oldTransaction.isRecurring,
                 location: location || oldTransaction.location,
                 sharedWith: sharedWith || oldTransaction.sharedWith,
                 accountId: accountId || oldTransaction.accountId
@@ -602,7 +599,7 @@ const deleteTransaction = async (req, res) => {
 const getTransactions = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { startDate, endDate, transactionType, categoryId, accountId, minAmount, maxAmount, tags, isRecurring } = req.query;
+        const { startDate, endDate, transactionType, categoryId, accountId, minAmount, maxAmount, tags } = req.query;
 
         let filter: any = { userId };
 
@@ -644,10 +641,6 @@ const getTransactions = async (req, res) => {
             filter.tags = { $in: tags.split(",") }; // Expecting tags as comma-separated values
         }
 
-        // Filter by isRecurring
-        if (isRecurring !== undefined) {
-            filter.isRecurring = isRecurring === "true";
-        }
 
         const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });
 
@@ -1271,7 +1264,6 @@ const transferMoney = async (req, res) => {
             categoryId: transactionCategoryId,
             description: description || `Transfer to ${destinationAccount.accountName}`,
             tags: tags || ["transfer", isBillPayment ? "bill-payment" : "internal-transfer"],
-            isRecurring: false,
             location: [],
             sharedWith: [],
             referenceId,
@@ -1287,7 +1279,6 @@ const transferMoney = async (req, res) => {
             categoryId: transactionCategoryId,
             description: description || `Transfer from ${sourceAccount.accountName}`,
             tags: tags || ["transfer", isBillPayment ? "bill-payment" : "internal-transfer"],
-            isRecurring: false,
             location: [],
             sharedWith: [],
             referenceId,

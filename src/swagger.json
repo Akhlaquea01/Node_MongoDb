@@ -1579,7 +1579,7 @@
         }
       }
     },
-    "/bank/create": {
+    "/account/create": {
       "post": {
         "summary": "Create a new bank account",
         "tags": ["Bank"],
@@ -1922,7 +1922,7 @@
         }
       }
     },
-    "/bank/create": {
+    "/account/create": {
       "post": {
         "summary": "Create a new bank account",
         "tags": ["Bank"],
@@ -1983,7 +1983,7 @@
         }
       }
     },
-    "/bank/{accountId}": {
+    "/account/{accountId}": {
       "put": {
         "summary": "Update a bank account",
         "tags": ["Bank"],
@@ -2068,7 +2068,7 @@
         }
       }
     },
-    "/bank/getAll": {
+    "/account/get": {
       "get": {
         "summary": "Get all bank accounts for the current user",
         "tags": ["Bank"],
@@ -2082,7 +2082,7 @@
         }
       }
     },
-    "/bank/transaction": {
+    "/account/transaction": {
       "post": {
         "summary": "Create a new transaction",
         "tags": ["Bank"],
@@ -2127,11 +2127,6 @@
                   "required": false,
                   "description": "Transaction tags"
                 },
-                "isRecurring": {
-                  "type": "boolean",
-                  "required": false,
-                  "description": "Whether this is a recurring transaction"
-                },
                 "location": {
                   "type": "object",
                   "required": false,
@@ -2169,9 +2164,81 @@
             "description": "Internal Server Error"
           }
         }
+      },
+      "get": {
+        "summary": "Get all transactions",
+        "tags": ["Bank"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "type": "string",
+            "format": "date",
+            "required": false,
+            "description": "Start date for filtering transactions"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "type": "string",
+            "format": "date",
+            "required": false,
+            "description": "End date for filtering transactions"
+          },
+          {
+            "in": "query",
+            "name": "transactionType",
+            "type": "string",
+            "required": false,
+            "description": "Filter by transaction type (debit/credit)"
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "type": "string",
+            "required": false,
+            "description": "Filter by category ID"
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "type": "string",
+            "required": false,
+            "description": "Filter by account ID"
+          },
+          {
+            "in": "query",
+            "name": "minAmount",
+            "type": "number",
+            "required": false,
+            "description": "Minimum transaction amount"
+          },
+          {
+            "in": "query",
+            "name": "maxAmount",
+            "type": "number",
+            "required": false,
+            "description": "Maximum transaction amount"
+          },
+          {
+            "in": "query",
+            "name": "tags",
+            "type": "string",
+            "required": false,
+            "description": "Filter by tags (comma-separated)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
       }
     },
-    "/bank/transaction/multitxn": {
+    "/account/transaction/multitxn": {
       "post": {
         "summary": "Create multiple transactions",
         "tags": ["Bank"],
@@ -2221,11 +2288,6 @@
                         "required": false,
                         "description": "Transaction tags"
                       },
-                      "isRecurring": {
-                        "type": "boolean",
-                        "required": false,
-                        "description": "Whether this is a recurring transaction"
-                      },
                       "location": {
                         "type": "object",
                         "required": false,
@@ -2259,7 +2321,7 @@
         }
       }
     },
-    "/bank/transaction/{transactionId}": {
+    "/account/transaction/{transactionId}": {
       "put": {
         "summary": "Update a transaction",
         "tags": ["Bank"],
@@ -2305,11 +2367,6 @@
                   },
                   "required": false,
                   "description": "New tags"
-                },
-                "isRecurring": {
-                  "type": "boolean",
-                  "required": false,
-                  "description": "New recurring status"
                 },
                 "location": {
                   "type": "object",
@@ -2365,7 +2422,7 @@
         }
       }
     },
-    "/bank/transaction/summary": {
+    "/account/transaction/summary": {
       "get": {
         "summary": "Get transaction summary",
         "tags": ["Bank"],
@@ -2379,7 +2436,7 @@
         }
       }
     },
-    "/bank/transaction/incomeExpenseSummary": {
+    "/account/transaction/incomeExpenseSummary": {
       "get": {
         "summary": "Get income and expense summary based on filter type",
         "tags": ["Transaction"],
@@ -2510,7 +2567,7 @@
         }
       }
     },
-    "/bank/transaction/recurring": {
+    "/account/transaction/expense": {
       "get": {
         "summary": "Get all recurring transactions",
         "tags": ["Bank"],
@@ -2671,7 +2728,7 @@
         }
       }
     },
-    "/bank/transaction/expense": {
+    "/account/transaction/expense": {
       "get": {
         "summary": "Get all expenses",
         "tags": ["Bank"],
@@ -2685,7 +2742,7 @@
         }
       }
     },
-    "/bank/transaction/income": {
+    "/account/transaction/income": {
       "get": {
         "summary": "Get all income transactions",
         "tags": ["Bank"],
@@ -2699,13 +2756,68 @@
         }
       }
     },
-    "/bank/transaction/investment": {
+    "/account/transaction/investment": {
       "get": {
         "summary": "Get all investment transactions",
         "tags": ["Bank"],
         "responses": {
           "200": {
             "description": "Investment transactions retrieved successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/account/transfer": {
+      "post": {
+        "summary": "Transfer money between accounts",
+        "tags": ["Bank"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "sourceAccountId": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Source account ID"
+                },
+                "destinationAccountId": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Destination account ID"
+                },
+                "amount": {
+                  "type": "number",
+                  "required": true,
+                  "description": "Transfer amount"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Transfer description"
+                },
+                "isBillPayment": {
+                  "type": "boolean",
+                  "description": "Whether this is a bill payment"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Money transferred successfully"
+          },
+          "400": {
+            "description": "Invalid input or insufficient funds"
+          },
+          "404": {
+            "description": "Account not found"
           },
           "500": {
             "description": "Internal Server Error"

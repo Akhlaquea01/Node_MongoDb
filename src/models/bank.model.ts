@@ -45,25 +45,6 @@ const TransactionSchema = new mongoose.Schema(
             type: [String],
             default: ['#personal'],
         },
-        isRecurring: {
-            type: Boolean,
-            default: false,
-        },
-        recurringDetails: {
-            frequency: {
-                type: String,
-                enum: ["daily", "weekly", "monthly", "quaterly", "yearly"], // Defines recurrence frequency.
-                default: null,
-            },
-            endDate: {
-                type: Date, // Optional end date for the recurring transaction.
-                default: null,
-            },
-            nextOccurrence: {
-                type: Date, // Tracks the next occurrence for recurring transactions.
-                default: null,
-            },
-        },
         location: {
             type: [String],
             default: null,
