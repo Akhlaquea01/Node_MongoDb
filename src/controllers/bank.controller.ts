@@ -645,7 +645,7 @@ const getTransactions = async (req, res) => {
         const transactions = await Transaction.find(filter).populate("accountId categoryId").sort({ date: -1 });
 
         // Get the Others category once for all transactions
-        const othersCategory = await Category.findOne({ name: 'Others', isDefault: true });
+        const othersCategory = await Category.findOne({ name: 'Other Expenses', isDefault: true });
 
         // Transform the transactions to rename categoryId to category and accountId to account
         const transformedTransactions = transactions.map(transaction => {
@@ -653,7 +653,7 @@ const getTransactions = async (req, res) => {
             // Handle null or missing category
             if (!transactionObj.categoryId) {
                 transactionObj.category = othersCategory?.toObject() || {
-                    name: 'Others',
+                    name: 'Other Expenses',
                     color: '#808080'
                 };
             } else {
@@ -1235,7 +1235,7 @@ const transferMoney = async (req, res) => {
                 if (transferCategory) {
                     transactionCategoryId = transferCategory._id;
                 } else {
-                    const defaultCategory = await Category.findOne({ name: "Others", isDefault: true }).session(session);
+                    const defaultCategory = await Category.findOne({ name: "Other Expenses", isDefault: true }).session(session);
                     if (defaultCategory) {
                         transactionCategoryId = defaultCategory._id;
                     }
