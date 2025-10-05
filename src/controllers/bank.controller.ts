@@ -149,212 +149,109 @@ const getAccount = asyncHandler(async (req, res) => {
     }
 });
 
+// Internal function to handle creation of a single transaction
+const _createSingleTransaction = async (txnData, session) => {
+    const { userId, accountId, transactionType, amount, categoryId, description, tags, location, sharedWith, date } = txnData;
+
+    const account = await Account.findById(accountId).session(session);
+    if (!account) {
+        throw { statusCode: 404, message: "Account not found", error: new Error(`Account not found with accountId:${accountId}`) };
+    }
+
+    if (account.status !== 'active') {
+        throw { statusCode: 400, message: "Account is inactive", error: new Error(`Account with accountId:${accountId} is inactive`) };
+    }
+
+    let newBalance = account.balance;
+    if (account.accountType === "credit_card") {
+        if (transactionType === "debit") {
+            if (newBalance + amount > account.limit) {
+                throw { statusCode: 400, message: "Transaction would exceed credit card limit", error: new Error(`Transaction would exceed credit card limit: ${accountId}`) };
+            }
+            newBalance += amount;
+        } else if (transactionType === "credit") {
+            if (newBalance < amount) {
+                throw { statusCode: 400, message: "Insufficient balance to pay", error: new Error(`Insufficient balance to pay in credit card: ${accountId}`) };
+            }
+            newBalance -= amount;
+        }
+    } else {
+        if (transactionType === "debit") {
+            if (newBalance < amount) {
+                throw { statusCode: 400, message: "Insufficient balance", error: new Error(`Insufficient balance in account: ${accountId}`) };
+            }
+            newBalance -= amount;
+        } else if (transactionType === "credit") {
+            newBalance += amount;
+        }
+    }
+
+    await Account.findByIdAndUpdate(accountId, { balance: newBalance }, { new: true, session });
+
+    const newTransaction = new Transaction({
+        userId,
+        accountId,
+        transactionType,
+        amount,
+        categoryId,
+        description,
+        tags,
+        location,
+        sharedWith,
+        date: date ? new Date(date) : new Date()
+    });
+
+    await newTransaction.save({ session });
+    return newTransaction;
+};
+
 const createTransaction = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
-        const { accountId, transactionType, amount, categoryId, description, tags, location, sharedWith, date } = req.body;
-        const userId = req.user._id;
-
-        // Create new transaction
-        const newTransaction = new Transaction({
-            userId,
-            accountId,
-            transactionType,
-            amount,
-            categoryId,
-            description,
-            tags,
-            location,
-            sharedWith,
-            date: date ? new Date(date) : new Date() // Use provided date or current date
-        });
-
-        const updatedAccount = await Account.findById(accountId).session(session);
-
-        if (!updatedAccount) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(404).json(
-                new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
-            );
-        }
-
-        // Calculate new balance
-        let newBalance = updatedAccount.balance;
-
-        if (updatedAccount.accountType === "credit_card") {
-            // For credit cards, balance represents used amount (debt)
-            if (transactionType === "debit") {
-                // For debit, check if new balance would exceed limit
-                if (newBalance + amount > updatedAccount.limit) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return res.status(400).json(
-                        new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
-                    );
-                }
-                newBalance += amount; // Increase balance (debt) for debit
-            } else if (transactionType === "debit") {
-                // For credit, check if there's enough balance to pay
-                if (newBalance < amount) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return res.status(400).json(
-                        new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
-                    );
-                }
-                newBalance -= amount; // Decrease balance (debt) for credit
-            }
-        } else {
-            // For regular accounts
-            if (transactionType === "debit") {
-                if (newBalance < amount) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return res.status(400).json(
-                        new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
-                    );
-                }
-                newBalance -= amount;
-            } else if (transactionType === "credit") {
-                newBalance += amount;
-            }
-        }
-
-        // Update the account balance in the database
-        const updatedAccountBalance = await Account.findByIdAndUpdate(
-            accountId,
-            { balance: newBalance },
-            { new: true, session }
-        );
-
-        await newTransaction.save({ session });
-
-
+        const transactionData = { ...req.body, userId: req.user._id };
+        const newTransaction = await _createSingleTransaction(transactionData, session);
         await session.commitTransaction();
         session.endSession();
-
         return res.status(201).json(new ApiResponse(201, { transaction: newTransaction }, "Transaction created successfully"));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
+        if (error.statusCode) {
+            return res.status(error.statusCode).json(new ApiResponse(error.statusCode, undefined, error.message, error.error));
+        }
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
 
 const createMultipleTransactions = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
-        const { transactions } = req.body; // Expecting an array of transactions
-
+        const { transactions } = req.body;
         if (!Array.isArray(transactions) || transactions.length === 0) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json(
-                new ApiResponse(400, undefined, "Invalid input", new Error("Transaction Array is required"))
-            );
+            return res.status(400).json(new ApiResponse(400, undefined, "Invalid input", new Error("Transaction Array is required")));
         }
 
         const savedTransactions = [];
-
         for (const txn of transactions) {
-            const { userId, accountId, transactionType, amount, categoryId, description, tags, location, sharedWith, date } = txn;
-
-            // Create new transaction
-            const newTransaction = new Transaction({
-                userId,
-                accountId,
-                transactionType,
-                amount,
-                categoryId,
-                description,
-                tags,
-                location,
-                sharedWith,
-                date: date ? new Date(date) : new Date() // Use provided date or current date
-            });
-
-            const updatedAccount = await Account.findById(accountId).session(session);
-
-            if (!updatedAccount) {
-                await session.abortTransaction();
-                session.endSession();
-                return res.status(404).json(
-                    new ApiResponse(404, undefined, "Account not found", new Error(`Account not found with accountId:${accountId}`))
-                );
-            }
-
-            // Calculate new balance
-            let newBalance = updatedAccount.balance;
-
-            if (updatedAccount.accountType === "credit_card") {
-                // For credit cards, balance represents used amount (debt)
-                if (transactionType === "debit") {
-                    // For debit, check if new balance would exceed limit
-                    if (newBalance + amount > updatedAccount.limit) {
-                        await session.abortTransaction();
-                        session.endSession();
-                        return res.status(400).json(
-                            new ApiResponse(400, undefined, "Transaction would exceed credit card limit", new Error(`Transaction would exceed credit card limit: ${accountId}`))
-                        );
-                    }
-                    newBalance += amount; // Increase balance (debt) for debit
-                } else if (transactionType === "credit") {
-                    // For credit, check if there's enough balance to pay
-                    if (newBalance < amount) {
-                        await session.abortTransaction();
-                        session.endSession();
-                        return res.status(400).json(
-                            new ApiResponse(400, undefined, "Insufficient balance to pay", new Error(`Insufficient balance to pay in credit card: ${accountId}`))
-                        );
-                    }
-                    newBalance -= amount; // Decrease balance (debt) for credit
-                }
-            } else {
-                // For regular accounts
-                if (transactionType === "debit") {
-                    if (newBalance < amount) {
-                        await session.abortTransaction();
-                        session.endSession();
-                        return res.status(400).json(
-                            new ApiResponse(400, undefined, "Insufficient balance", new Error(`Insufficient balance in account: ${accountId}`))
-                        );
-                    }
-                    newBalance -= amount;
-                } else if (transactionType === "credit") {
-                    newBalance += amount;
-                }
-            }
-
-            // Update the account balance in the database
-            const updatedAccountBalance = await Account.findByIdAndUpdate(
-                accountId,
-                { balance: newBalance },
-                { new: true, session }
-            );
-
-            await newTransaction.save({ session });
+            // Assuming userId is part of the transaction object for multi-creation
+            const newTransaction = await _createSingleTransaction(txn, session);
             savedTransactions.push(newTransaction);
-
         }
-
 
         await session.commitTransaction();
         session.endSession();
-
         return res.status(201).json(new ApiResponse(201, { transactions: savedTransactions }, "Transactions created successfully"));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(500).json(
-            new ApiResponse(500, undefined, "Something went wrong", error)
-        );
+        if (error.statusCode) {
+            return res.status(error.statusCode).json(new ApiResponse(error.statusCode, undefined, error.message, error.error));
+        }
+        return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 };
 
@@ -383,6 +280,11 @@ const updateTransaction = async (req, res) => {
 
         // Get the old account details
         const oldAccount = oldTransaction.accountId;
+        if (oldAccount.status !== 'active') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(new ApiResponse(400, undefined, "Old account is inactive", new Error(`Account with accountId:${oldAccount._id} is inactive`)));
+        }
 
         // If account is being changed, validate the new account
         let newAccount;
@@ -394,6 +296,11 @@ const updateTransaction = async (req, res) => {
                 return res.status(404).json(
                     new ApiResponse(404, undefined, "New account not found", new Error(`Account not found with accountId:${accountId}`))
                 );
+            }
+            if (newAccount.status !== 'active') {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json(new ApiResponse(400, undefined, "New account is inactive", new Error(`Account with accountId:${accountId} is inactive`)));
             }
         }
 
@@ -578,18 +485,47 @@ const updateTransaction = async (req, res) => {
 
 const deleteTransaction = async (req, res) => {
     const { transactionId } = req.params;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-        const deletedTransaction = await Transaction.findByIdAndDelete(transactionId);
+        const transaction = await Transaction.findById(transactionId).session(session);
 
-        if (!deletedTransaction) {
-            return res.status(400).json(
-                new ApiResponse(400, undefined, "Transaction not found", new Error("Transaction with the given ID does not exist"))
+        if (!transaction) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Transaction not found", new Error("Transaction with the given ID does not exist"))
             );
         }
 
+        const account = await Account.findById(transaction.accountId).session(session);
+
+        if (!account) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json(
+                new ApiResponse(404, undefined, "Associated account not found", new Error("Associated account not found"))
+            );
+        }
+
+        // Reverse the transaction amount
+        if (transaction.transactionType === 'debit') {
+            account.balance += transaction.amount;
+        } else if (transaction.transactionType === 'credit') {
+            account.balance -= transaction.amount;
+        }
+
+        await account.save({ session });
+        await Transaction.findByIdAndDelete(transactionId).session(session);
+
+        await session.commitTransaction();
+        session.endSession();
+
         return res.status(200).json(new ApiResponse(200, null, "Transaction deleted successfully"));
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -679,152 +615,119 @@ const getTransactions = async (req, res) => {
 
 const getTransactionSummary = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = new mongoose.Types.ObjectId(req.user._id);
         const { month, year, startDate, endDate } = req.query;
 
-        // Parse dates based on provided parameters
         let queryStartDate, queryEndDate;
-
         if (month && year) {
-            // If month and year are provided, use them to calculate date range
-            const queryMonth = parseInt(month, 10) - 1; // Convert to 0-based month
+            const queryMonth = parseInt(month, 10) - 1;
             const queryYear = parseInt(year, 10);
-
-            // Set start date to first day of the month
-            queryStartDate = new Date(queryYear, queryMonth, 1);
-
-            // Set end date to last day of the month
-            queryEndDate = new Date(queryYear, queryMonth + 1, 0);
+            queryStartDate = new Date(Date.UTC(queryYear, queryMonth, 1));
+            queryEndDate = new Date(Date.UTC(queryYear, queryMonth + 1, 0, 23, 59, 59, 999));
         } else if (startDate && endDate) {
-            // If startDate and endDate are provided, use them directly
             queryStartDate = new Date(startDate);
             queryEndDate = new Date(endDate);
         } else {
-            // Default to current month if no parameters are provided
-            const currentDate = new Date();
-            queryStartDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-            queryEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+            const now = new Date();
+            queryStartDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+            queryEndDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
         }
 
-        // Calculate the previous month's date range for savings calculation
         const prevMonthStartDate = new Date(queryStartDate);
-        prevMonthStartDate.setMonth(prevMonthStartDate.getMonth() - 1);
+        prevMonthStartDate.setUTCMonth(prevMonthStartDate.getUTCMonth() - 1);
         const prevMonthEndDate = new Date(queryStartDate);
-        prevMonthEndDate.setDate(prevMonthEndDate.getDate() - 1);
+        prevMonthEndDate.setUTCDate(prevMonthEndDate.getUTCDate() - 1);
+        prevMonthEndDate.setUTCHours(23, 59, 59, 999);
 
-        // Get transactions for the current period with populated category and account information
-        const transactions = await Transaction.find({
-            userId,
-            date: { $gte: queryStartDate, $lte: queryEndDate }
-        }).populate('categoryId', 'name')
-          .populate('accountId', 'accountName accountType');
-
-        // Get transactions for the previous month to calculate savings
-        const prevMonthTransactions = await Transaction.find({
-            userId,
-            date: { $gte: prevMonthStartDate, $lte: prevMonthEndDate }
-        }).populate('accountId', 'accountType');
-
-        // Calculate current period summary
-        let totalIncome = 0;
-        let totalExpense = 0;
-        let categoryWiseExpense = {};
-        let categoryWiseIncome = {};
-        let creditCardExpenses = 0;
-        let creditCardPayments = 0;
-
-        // Process current period transactions
-        transactions.forEach(transaction => {
-            const isCreditCard = transaction.accountId?.accountType === "credit_card";
-            
-            if (transaction.transactionType === "credit") {
-                totalIncome += transaction.amount;
-                if (isCreditCard) {
-                    creditCardPayments += transaction.amount;
+        const aggregationResult = await Transaction.aggregate([
+            {
+                $match: {
+                    userId: userId,
+                    date: { $gte: prevMonthStartDate, $lte: queryEndDate }
                 }
-                if (transaction.categoryId) {
-                    const categoryName = transaction.categoryId.name || "Unknown";
-                    if (!categoryWiseIncome[categoryName]) {
-                        categoryWiseIncome[categoryName] = 0;
-                    }
-                    categoryWiseIncome[categoryName] += transaction.amount;
+            },
+            {
+                $lookup: {
+                    from: "accounts",
+                    localField: "accountId",
+                    foreignField: "_id",
+                    as: "account"
                 }
-            } else if (transaction.transactionType === "debit") {
-                totalExpense += transaction.amount;
-                if (isCreditCard) {
-                    creditCardExpenses += transaction.amount;
+            },
+            { $unwind: "$account" },
+            {
+                $lookup: {
+                    from: "categories",
+                    localField: "categoryId",
+                    foreignField: "_id",
+                    as: "category"
                 }
-                if (transaction.categoryId) {
-                    const categoryName = transaction.categoryId.name || "Unknown";
-                    if (!categoryWiseExpense[categoryName]) {
-                        categoryWiseExpense[categoryName] = 0;
-                    }
-                    categoryWiseExpense[categoryName] += transaction.amount;
-                }
-            }
-        });
-
-        // Calculate previous month's savings (net amount)
-        let prevMonthIncome = 0;
-        let prevMonthExpense = 0;
-        let prevMonthCreditCardExpenses = 0;
-        let prevMonthCreditCardPayments = 0;
-
-        prevMonthTransactions.forEach(transaction => {
-            const isCreditCard = transaction.accountId?.accountType === "credit_card";
-            
-            if (transaction.transactionType === "credit") {
-                prevMonthIncome += transaction.amount;
-                if (isCreditCard) {
-                    prevMonthCreditCardPayments += transaction.amount;
-                }
-            } else if (transaction.transactionType === "debit") {
-                prevMonthExpense += transaction.amount;
-                if (isCreditCard) {
-                    prevMonthCreditCardExpenses += transaction.amount;
+            },
+            { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+            {
+                $facet: {
+                    currentPeriod: [
+                        { $match: { date: { $gte: queryStartDate, $lte: queryEndDate } } },
+                        {
+                            $group: {
+                                _id: null,
+                                totalIncome: { $sum: { $cond: [{ $eq: ["$transactionType", "credit"] }, "$amount", 0] } },
+                                totalExpense: { $sum: { $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0] } },
+                                creditCardPayments: { $sum: { $cond: [{ $and: [{ $eq: ["$transactionType", "credit"] }, { $eq: ["$account.accountType", "credit_card"] }] }, "$amount", 0] } },
+                                creditCardExpenses: { $sum: { $cond: [{ $and: [{ $eq: ["$transactionType", "debit"] }, { $eq: ["$account.accountType", "credit_card"] }] }, "$amount", 0] } }
+                            }
+                        }
+                    ],
+                    previousPeriod: [
+                        { $match: { date: { $gte: prevMonthStartDate, $lte: prevMonthEndDate } } },
+                        {
+                            $group: {
+                                _id: null,
+                                prevMonthIncome: { $sum: { $cond: [{ $eq: ["$transactionType", "credit"] }, "$amount", 0] } },
+                                prevMonthExpense: { $sum: { $cond: [{ $eq: ["$transactionType", "debit"] }, "$amount", 0] } },
+                                prevMonthCreditCardPayments: { $sum: { $cond: [{ $and: [{ $eq: ["$transactionType", "credit"] }, { $eq: ["$account.accountType", "credit_card"] }] }, "$amount", 0] } },
+                                prevMonthCreditCardExpenses: { $sum: { $cond: [{ $and: [{ $eq: ["$transactionType", "debit"] }, { $eq: ["$account.accountType", "credit_card"] }] }, "$amount", 0] } }
+                            }
+                        }
+                    ],
+                    categoryWiseExpense: [
+                        { $match: { date: { $gte: queryStartDate, $lte: queryEndDate }, transactionType: "debit" } },
+                        { $group: { _id: "$category.name", amount: { $sum: "$amount" } } },
+                        { $project: { _id: 0, category: { $ifNull: ["$_id", "Unknown"] }, amount: 1 } }
+                    ],
+                    categoryWiseIncome: [
+                        { $match: { date: { $gte: queryStartDate, $lte: queryEndDate }, transactionType: "credit" } },
+                        { $group: { _id: "$category.name", amount: { $sum: "$amount" } } },
+                        { $project: { _id: 0, category: { $ifNull: ["$_id", "Unknown"] }, amount: 1 } }
+                    ]
                 }
             }
-        });
+        ]);
 
-        const lastMonthSavings = prevMonthIncome - prevMonthExpense;
+        const currentSummary = aggregationResult[0].currentPeriod[0] || {};
+        const prevSummary = aggregationResult[0].previousPeriod[0] || {};
 
-        // Format category-wise data for response
-        const formattedCategoryWiseExpense = Object.entries(categoryWiseExpense).map(([category, amount]) => ({
-            category,
-            amount
-        }));
+        const response = {
+            month: queryStartDate.getUTCMonth() + 1,
+            year: queryStartDate.getUTCFullYear(),
+            startDate: queryStartDate.toISOString(),
+            endDate: queryEndDate.toISOString(),
+            totalIncome: currentSummary.totalIncome || 0,
+            totalExpense: currentSummary.totalExpense || 0,
+            netAmount: (currentSummary.totalIncome || 0) - (currentSummary.totalExpense || 0),
+            lastMonthSavings: (prevSummary.prevMonthIncome || 0) - (prevSummary.prevMonthExpense || 0),
+            creditCardExpenses: currentSummary.creditCardExpenses || 0,
+            creditCardPayments: currentSummary.creditCardPayments || 0,
+            prevMonthCreditCardExpenses: prevSummary.prevMonthCreditCardExpenses || 0,
+            prevMonthCreditCardPayments: prevSummary.prevMonthCreditCardPayments || 0,
+            categoryWiseExpense: aggregationResult[0].categoryWiseExpense,
+            categoryWiseIncome: aggregationResult[0].categoryWiseIncome
+        };
 
-        const formattedCategoryWiseIncome = Object.entries(categoryWiseIncome).map(([category, amount]) => ({
-            category,
-            amount
-        }));
+        return res.status(200).json(new ApiResponse(200, response, "Transaction summary fetched successfully"));
 
-        // Calculate net amount (savings) for the current period
-        const netAmount = totalIncome - totalExpense;
-
-        // Include month and year in the response for clarity
-        const responseMonth = queryStartDate.getMonth() + 1; // Convert back to 1-based month
-        const responseYear = queryStartDate.getFullYear();
-
-        return res.status(200).json(
-            new ApiResponse(200, {
-                month: responseMonth,
-                year: responseYear,
-                startDate: queryStartDate,
-                endDate: queryEndDate,
-                totalIncome,
-                totalExpense,
-                netAmount,
-                lastMonthSavings,
-                creditCardExpenses,
-                creditCardPayments,
-                prevMonthCreditCardExpenses,
-                prevMonthCreditCardPayments,
-                categoryWiseExpense: formattedCategoryWiseExpense,
-                categoryWiseIncome: formattedCategoryWiseIncome
-            }, "Transaction summary fetched successfully")
-        );
     } catch (error) {
+        console.error("Error in getTransactionSummary:", error);
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -1187,6 +1090,11 @@ const transferMoney = async (req, res) => {
                 new ApiResponse(404, undefined, "Source account not found", new Error(`Source account not found with ID: ${sourceAccountId}`))
             );
         }
+        if (sourceAccount.status !== 'active') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(new ApiResponse(400, undefined, "Source account is inactive", new Error(`Account with accountId:${sourceAccountId} is inactive`)));
+        }
 
         if (!destinationAccount) {
             await session.abortTransaction();
@@ -1194,6 +1102,11 @@ const transferMoney = async (req, res) => {
             return res.status(404).json(
                 new ApiResponse(404, undefined, "Destination account not found", new Error(`Destination account not found with ID: ${destinationAccountId}`))
             );
+        }
+        if (destinationAccount.status !== 'active') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json(new ApiResponse(400, undefined, "Destination account is inactive", new Error(`Account with accountId:${destinationAccountId} is inactive`)));
         }
 
         // Check if source account has sufficient balance/credit
