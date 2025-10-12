@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import fs from "fs";
 import mkdirp from 'mkdirp'
+import path from "path";
+import mime from "mime-types";
 import { Video } from "../models/video.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -325,6 +327,81 @@ const downloadVideoById = async (req, res, next) => {
     }
 };
 
+// Static Video Streaming with Range Requests
+const streamVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    // Find the video by ID in your database
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    // Check if video is published or user owns it
+    if (!video.isPublished && video.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Access denied - Video not published");
+    }
+
+    // Define the local directory path for video files
+    const videoDirectory = './downloads';
+    const localFilePath = `${videoDirectory}/${video.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
+
+    // Check if local file exists, if not download it
+    if (!fs.existsSync(localFilePath)) {
+        try {
+            await mkdirp(videoDirectory);
+            await downloadFile(video.videoFile, localFilePath);
+        } catch (downloadError) {
+            throw new ApiError(500, "Error preparing video for streaming");
+        }
+    }
+
+    // Get video file stats
+    const videoStats = fs.statSync(localFilePath);
+    const videoSize = videoStats.size;
+    const videoMimeType = mime.lookup(localFilePath) || "video/mp4";
+
+    // Handle Range header for partial content
+    const range = req.headers.range;
+    
+    if (!range) {
+        // If no Range header, send the entire video
+        const headers = {
+            "Content-Length": videoSize,
+            "Content-Type": videoMimeType,
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=31536000"
+        };
+        res.writeHead(200, headers);
+        return fs.createReadStream(localFilePath).pipe(res);
+    }
+
+    // Parse Range header
+    const CHUNK_SIZE = 10 ** 6; // 1MB chunks
+    const start = Number(range.replace(/\D/g, ""));
+    const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
+    const contentLength = end - start + 1;
+
+    // Set partial content headers
+    const headers = {
+        "Content-Range": `bytes ${start}-${end}/${videoSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": contentLength,
+        "Content-Type": videoMimeType,
+        "Cache-Control": "public, max-age=31536000"
+    };
+
+    res.writeHead(206, headers); // 206 = Partial Content
+
+    // Create read stream for the specific range
+    const videoStream = fs.createReadStream(localFilePath, { start, end });
+    videoStream.pipe(res);
+
+    // Increment view count
+    await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
+});
+
 
 
 
@@ -335,5 +412,6 @@ export {
     updateVideo,
     deleteVideo,
     togglePublishStatus,
-    downloadVideoById
+    downloadVideoById,
+    streamVideo
 };

@@ -54,6 +54,7 @@ import bankRouter from "./routes/bank.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import genAIRouter from "./routes/genAI.routes.js";
 import icsRouter from "./routes/ics.routes.js";
+import streamingRouter from "./routes/streaming.routes.js";
 
 //routes declaration
 app.use("/api/v1/healthcheck", healthcheckRouter);
@@ -69,6 +70,7 @@ app.use("/api/v1/account", bankRouter);
 app.use("/api/v1/categories", categoryRouter);
 app.use("/api/v1/ai", genAIRouter);
 app.use("/api/v1/ics", icsRouter);
+app.use("/api/v1/streaming", streamingRouter);
 
 // http://localhost:8000/api/v1/users/register
 

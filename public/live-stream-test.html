@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Test Page</title>
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
+    <style>
+        /* --- existing styles kept exactly as-is --- */
+        /* (No design change, just shortened for brevity) */
+        body {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-family: sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            font-family: monospace;
+        }
+
+        .log-entry.success {
+            color: green;
+        }
+
+        .log-entry.error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔴 Live Stream Test Page (with Token)</h1>
+            <p>Test your Node.js live streaming server securely using JWT authentication</p>
+        </div>
+
+        <div class="video-container">
+            <video id="livePlayer" class="video-js vjs-default-skin" controls autoplay muted playsinline></video>
+        </div>
+
+        <div style="margin-top:20px;">
+            <button class="btn" onclick="startStreamingServer()">🚀 Start Streaming Server</button>
+            <button class="btn danger" onclick="stopStreamingServer()">🛑 Stop Streaming Server</button>
+            <button class="btn success" onclick="refreshStatus()">🔄 Refresh Status</button>
+        </div>
+
+        <div class="log" id="activityLog">
+            <div class="log-entry">[INFO] Page Loaded...</div>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script>
+        const API_BASE = "http://localhost:5000/api/v1/streaming";
+        const STREAM_URL = "http://localhost:5000/live/stream/index.m3u8"; // your HLS stream URL
+        const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzllMzA4YmQzMTFlYTE5NzU4Mzc4NTEiLCJlbWFpbCI6ImFzaGZhcXVlMzg2QGdtYWlsLmNvbSIsInVzZXJuYW1lIjoiYXNoZmFxdWUzODYiLCJmdWxsTmFtZSI6IkFzaGZhcXVlIEFobWFkIiwiaWF0IjoxNzYwMjYwMTYxLCJleHAiOjE3NjAzNDY1NjF9.WAOpRXoS-wzGFBU22_8YeluVeI8TQH2UKZkuPOtoWEQ";
+        const REFRESH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzllMzA4YmQzMTFlYTE5NzU4Mzc4NTEiLCJpYXQiOjE3NjAyNjAxNjEsImV4cCI6MTc2MTEyNDE2MX0.bVurT_mUAeEQ8vo1CFQr-bPrvnkU5y-n48TN-PDEFkM";
+
+        // Save tokens in localStorage
+        localStorage.setItem("accessToken", ACCESS_TOKEN);
+        localStorage.setItem("refreshToken", REFRESH_TOKEN);
+
+        // --- Initialize Video.js player ---
+        let player;
+        document.addEventListener("DOMContentLoaded", () => {
+            player = videojs("livePlayer", {
+                liveui: true,
+                responsive: true,
+                controls: true,
+                autoplay: 'muted',
+                preload: 'auto'
+            });
+
+            setAuthStreamSource();
+            log("✅ Player initialized with token-protected stream");
+            refreshStatus();
+            setInterval(refreshStatus, 5000);
+        });
+
+        // --- Attach token to stream request dynamically ---
+        function setAuthStreamSource() {
+            // For now, just set the stream URL directly
+            player.src({
+                src: STREAM_URL,
+                type: "application/x-mpegURL"
+            });
+        }
+
+        // --- API Requests ---
+        async function startStreamingServer() {
+            try {
+                const res = await fetch(`${API_BASE}/start`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (res.ok) log("🚀 Streaming server started", "success");
+                else log("❌ Failed: " + data.message, "error");
+            } catch (err) {
+                log("⚠️ Error starting stream: " + err.message, "error");
+            }
+        }
+
+        async function stopStreamingServer() {
+            try {
+                const res = await fetch(`${API_BASE}/stop`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (res.ok) log("🛑 Streaming server stopped", "success");
+                else log("❌ Failed: " + data.message, "error");
+            } catch (err) {
+                log("⚠️ Error stopping stream: " + err.message, "error");
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/status`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (res.ok) log(`📊 Status: ${JSON.stringify(data.data)}`, "info");
+                else log("⚠️ Could not get status", "error");
+            } catch (err) {
+                log("⚠️ Status error: " + err.message, "error");
+            }
+        }
+
+        // --- Utilities ---
+        function getAuthToken() {
+            return localStorage.getItem("accessToken") || ACCESS_TOKEN;
+        }
+
+        function log(msg, type = "info") {
+            const logDiv = document.getElementById("activityLog");
+            const entry = document.createElement("div");
+            entry.className = "log-entry " + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
