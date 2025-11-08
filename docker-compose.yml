@@ -1,0 +1,43 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-mongodb-app
+    ports:
+      - "${PORT:-5000}:5000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-5000}
+      - MONGODB_URL=${MONGODB_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - SOCKET_ORIGIN=${SOCKET_ORIGIN:-*}
+      - TELEGRAM_BOT_ENABLE=${TELEGRAM_BOT_ENABLE:-}
+      - YOUR_TELEGRAM_BOT_TOKEN=${YOUR_TELEGRAM_BOT_TOKEN:-}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
+      - ACCESS_TOKEN_EXPIRY=${ACCESS_TOKEN_EXPIRY:-1d}
+      - REFRESH_TOKEN_EXPIRY=${REFRESH_TOKEN_EXPIRY:-10d}
+      - EMAIL_ADDRESS=${EMAIL_ADDRESS:-}
+      - EMAIL_PASS_CODE=${EMAIL_PASS_CODE:-}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+      - GOOGLE_GENAI_API=${GOOGLE_GENAI_API:-}
+      - GOOGLE_GENAI_MODEL=${GOOGLE_GENAI_MODEL:-}
+      - OPENROUTER_API=${OPENROUTER_API:-}
+      - OPENROUTER_AI_MODEL=${OPENROUTER_AI_MODEL:-}
+      - API_URL=${API_URL:-http://localhost:11434/api/chat}
+    volumes:
+      - ./public:/app/public
+      - ./downloads:/app/downloads
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+

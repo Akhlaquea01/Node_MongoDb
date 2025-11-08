@@ -55,14 +55,17 @@ class ApiResponse<T = unknown> {
         statusCode: number;
         data: T;
         message: string;
-        error?: Error;
+        error?: string | { message: string; name: string };
         success: boolean;
     } {
         return {
             statusCode: this.statusCode,
             data: this.data,
             message: this.message,
-            error: this.error,
+            error: this.error ? {
+                message: this.error.message,
+                name: this.error.name
+            } : undefined,
             success: this.success,
         };
     }

@@ -40,6 +40,7 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 
+
 //routes import
 import userRouter from './routes/user.routes.js';
 import healthcheckRouter from "./routes/healthcheck.routes.js";
@@ -73,5 +74,31 @@ app.use("/api/v1/ics", icsRouter);
 app.use("/api/v1/streaming", streamingRouter);
 
 // http://localhost:8000/api/v1/users/register
+
+// Error handling middleware (must be after all routes)
+// Express recognizes error handlers by having exactly 4 parameters
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Error handler triggered:", err);
+    
+    // Don't send response if headers already sent
+    if (res.headersSent) {
+        return next(err);
+    }
+    
+    const statusCode = err.statusCode || err.status || 500;
+    const message = err.message || "Internal Server Error";
+    
+    try {
+        res.status(statusCode).json({
+            success: false,
+            statusCode,
+            message,
+            ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+        });
+    } catch (error) {
+        console.error("Error sending error response:", error);
+        res.status(500).end();
+    }
+});
 
 export { app };
