@@ -7,10 +7,6 @@ interface ChatMessage {
     timestamp?: Date;
 }
 
-interface PingMessage {
-    communityId: string;
-    message: string;
-}
 
 export function setupWebSocketServer(app: Express): { server: http.Server; io: Server } {
     const server = http.createServer(app);
@@ -36,11 +32,6 @@ export function setupWebSocketServer(app: Express): { server: http.Server; io: S
             io.emit("chat message", messageWithTimestamp);
         });
 
-        socket.on('pingCommunity', (data: PingMessage) => {
-            const { communityId, message } = data;
-            console.log(`Ping received for community ${communityId} from ${socket.id}`);
-            socket.broadcast.to(communityId).emit('ping', message);
-        });
         
         // Handle disconnect event
         socket.on("disconnect", () => {
