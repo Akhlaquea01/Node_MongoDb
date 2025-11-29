@@ -280,9 +280,65 @@
         "tags": [
           "Video"
         ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "type": "integer",
+            "required": false,
+            "description": "Page number (default: 1)"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "Number of videos per page (default: 10)"
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "type": "string",
+            "required": false,
+            "description": "Filter by published status"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "type": "string",
+            "required": false,
+            "description": "Field to sort by"
+          },
+          {
+            "in": "query",
+            "name": "sortType",
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "required": false,
+            "description": "Sort order (asc or desc)"
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "type": "string",
+            "required": true,
+            "description": "User ID to filter videos"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Videos retrieved successfully"
+          },
+          "400": {
+            "description": "userId is required"
           },
           "500": {
             "description": "Internal Server Error"
@@ -293,6 +349,11 @@
         "summary": "Publish a new video",
         "tags": [
           "Video"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "consumes": [
           "multipart/form-data"
@@ -332,6 +393,11 @@
         "tags": [
           "Video"
         ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -357,6 +423,11 @@
         "summary": "Update video details",
         "tags": [
           "Video"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "consumes": [
           "multipart/form-data"
@@ -394,6 +465,11 @@
         "tags": [
           "Video"
         ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -422,6 +498,11 @@
         "tags": [
           "Video"
         ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -449,6 +530,11 @@
         "summary": "Toggle video publish status",
         "tags": [
           "Video"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -500,6 +586,566 @@
           },
           "500": {
             "description": "API is unhealthy"
+          }
+        }
+      }
+    },
+    "/users/all-user": {
+      "get": {
+        "summary": "Get all users",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/all-items": {
+      "post": {
+        "summary": "Get all items from Cloudinary",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "resourceType": {
+                  "type": "string",
+                  "description": "Resource type (image, video, raw, auto)"
+                },
+                "maxResults": {
+                  "type": "integer",
+                  "description": "Maximum number of results to return"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/update-account": {
+      "patch": {
+        "summary": "Update account details",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fullName": {
+                  "type": "string",
+                  "required": true,
+                  "description": "User's full name"
+                },
+                "email": {
+                  "type": "string",
+                  "required": true,
+                  "description": "User's email address"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account details updated successfully"
+          },
+          "400": {
+            "description": "All fields are required"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/avatar": {
+      "patch": {
+        "summary": "Update user avatar",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "in": "formData",
+            "name": "avatar",
+            "type": "file",
+            "required": true,
+            "description": "User's avatar image"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avatar updated successfully"
+          },
+          "400": {
+            "description": "Avatar file is missing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/cover-image": {
+      "patch": {
+        "summary": "Update user cover image",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "in": "formData",
+            "name": "coverImage",
+            "type": "file",
+            "required": true,
+            "description": "User's cover image"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cover image updated successfully"
+          },
+          "400": {
+            "description": "Cover image file is missing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/c/{username}": {
+      "get": {
+        "summary": "Get user channel profile",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "type": "string",
+            "required": true,
+            "description": "Username of the channel"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channel profile retrieved successfully"
+          },
+          "404": {
+            "description": "Channel not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/history": {
+      "get": {
+        "summary": "Get user watch history",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Watch history retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/videos/stream/{videoId}": {
+      "get": {
+        "summary": "Stream video",
+        "tags": [
+          "Video"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "videoId",
+            "type": "string",
+            "required": true,
+            "description": "ID of the video to stream"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video stream started"
+          },
+          "404": {
+            "description": "Video not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/ics/generate": {
+      "post": {
+        "summary": "Generate ICS file with custom events",
+        "tags": [
+          "ICS"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "config",
+                "activities"
+              ],
+              "properties": {
+                "config": {
+                  "type": "object",
+                  "required": [
+                    "year",
+                    "month"
+                  ],
+                  "properties": {
+                    "year": {
+                      "type": "integer",
+                      "description": "Year for the calendar"
+                    },
+                    "month": {
+                      "type": "integer",
+                      "description": "Month for the calendar (1-12)"
+                    },
+                    "startDay": {
+                      "type": "integer",
+                      "description": "Starting day of the month"
+                    },
+                    "endDay": {
+                      "type": "integer",
+                      "description": "Ending day of the month"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "description": "Timezone (e.g., 'America/New_York')"
+                    },
+                    "filename": {
+                      "type": "string",
+                      "description": "Custom filename for the ICS file"
+                    }
+                  }
+                },
+                "activities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "title",
+                      "startHour",
+                      "startMinute",
+                      "duration",
+                      "description"
+                    ],
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "description": "Activity title"
+                      },
+                      "startHour": {
+                        "type": "integer",
+                        "description": "Start hour (0-23)"
+                      },
+                      "startMinute": {
+                        "type": "integer",
+                        "description": "Start minute (0-59)"
+                      },
+                      "duration": {
+                        "type": "object",
+                        "properties": {
+                          "hours": {
+                            "type": "integer",
+                            "description": "Duration in hours"
+                          },
+                          "minutes": {
+                            "type": "integer",
+                            "description": "Duration in minutes"
+                          }
+                        }
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Activity description"
+                      },
+                      "color": {
+                        "type": "string",
+                        "description": "Event color"
+                      },
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "description": "Days of week (0-6, Sunday-Saturday)"
+                      },
+                      "skipDays": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "description": "Specific dates to skip (day of month)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ICS file generated successfully"
+          },
+          "400": {
+            "description": "Config and activities array are required"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/ics/sample-config": {
+      "get": {
+        "summary": "Get sample ICS configuration",
+        "tags": [
+          "ICS"
+        ],
+        "responses": {
+          "200": {
+            "description": "Sample configuration retrieved successfully"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/streaming/player": {
+      "get": {
+        "summary": "Get HLS player HTML page",
+        "tags": [
+          "Streaming"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML player page"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/streaming/status": {
+      "get": {
+        "summary": "Get streaming server status",
+        "tags": [
+          "Streaming"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Streaming status retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "streams": {
+                  "type": "object",
+                  "description": "Stream session counts"
+                },
+                "rtmpUrl": {
+                  "type": "string",
+                  "description": "RTMP server URL"
+                },
+                "hlsUrl": {
+                  "type": "string",
+                  "description": "HLS server URL"
+                },
+                "isActive": {
+                  "type": "boolean",
+                  "description": "Whether stream is currently active"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Live streaming server not initialized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/streaming/start": {
+      "post": {
+        "summary": "Start live streaming server",
+        "tags": [
+          "Streaming"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live streaming server started successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "rtmpUrl": {
+                  "type": "string",
+                  "description": "RTMP server URL"
+                },
+                "hlsUrl": {
+                  "type": "string",
+                  "description": "HLS server URL"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Status message"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to start live streaming server"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/streaming/stop": {
+      "post": {
+        "summary": "Stop live streaming server",
+        "tags": [
+          "Streaming"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live streaming server stopped successfully"
+          },
+          "500": {
+            "description": "Failed to stop live streaming server"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
