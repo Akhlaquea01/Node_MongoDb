@@ -1,4 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
+import logger from './logger.js';
+
+const telegramLogger = logger.child({ module: 'telegram' });
 
 class TelegramChatBot {
     private bot: TelegramBot;
@@ -15,7 +18,7 @@ class TelegramChatBot {
             try {
                 await this.bot.sendMessage(chatId, resp);
             } catch (error) {
-                console.error("Error sending message:", error);
+                telegramLogger.error(error, "Error sending message", { chatId });
             }
         });
     }

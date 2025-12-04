@@ -9,6 +9,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, deleteFromCloudinaryByUrl, downloadFile } from "../utils/cloudinary.js";
+import logger from "../utils/logger.js";
+
+const videoLogger = logger.child({ module: 'video' });
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -97,7 +100,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
     const video = await uploadOnCloudinary(videoUrl, 'video');
     const thumbnail = await uploadOnCloudinary(thumbnailUrl, 'thumbnail');
-    console.log(video);
+    videoLogger.debug({ video: video?.url, thumbnail: thumbnail?.url }, "Video uploaded to Cloudinary");
 
 
     const videoData = await Video.create({
@@ -125,8 +128,10 @@ const getVideoById = asyncHandler(async (req, res) => {
     //TODO: get video by id
 
     const userVideo = await Video.findById(videoId);
-    console.log(userVideo?.owner.toString());
-    console.log(req.user?._id.toString());
+    videoLogger.debug({ 
+        videoOwner: userVideo?.owner.toString(), 
+        requestUserId: req.user?._id.toString() 
+    }, "Checking video ownership");
 
     if (!userVideo || ((!userVideo.isPublished) && (!userVideo.owner === req.user._id))) {
         throw new ApiError(400, "video ur seacrching for doesnot exist");
@@ -291,7 +296,7 @@ const downloadVideoById = async (req, res, next) => {
             // Clean up the file after sending
             stream.on('end', () => {
                 fs.unlink(localFilePath, (err) => {
-                    if (err) console.error('Error deleting temp file:', err);
+                    if (err) videoLogger.error(err, 'Error deleting temp file');
                 });
             });
 
@@ -322,7 +327,7 @@ const downloadVideoById = async (req, res, next) => {
             }
         }
     } catch (error) {
-        console.error("Error in downloadVideoById:", error);
+        videoLogger.error(error, "Error in downloadVideoById", { videoId: req.params.videoId });
         next(error);
     }
 };

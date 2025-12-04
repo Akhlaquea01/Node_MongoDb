@@ -59,3 +59,9 @@
 
 14. **npm i leaflet** (1.9.4): 
    - Leaflet is the leading open-source JavaScript library for mobile-friendly interactive maps. Weighing just about 39 KB of gzipped JS plus 4 KB of gzipped CSS code, it has all the mapping features most developers ever need.
+
+15. **pino** (^10.1.0): 
+   - Pino is a very fast, low overhead structured logger for Node.js applications. It provides high-performance logging with minimal overhead, making it ideal for production environments. Pino supports multiple log levels (trace, debug, info, warn, error, fatal), structured JSON logging, and can output to console or files. It's designed to be extremely fast and efficient, with minimal performance impact on your application.
+
+16. **pino-pretty** (^13.1.3): 
+   - pino-pretty is a development tool that formats Pino logs in a human-readable way. It provides colorized, formatted output for better readability during development. It automatically detects when running in a development environment and formats logs with colors, timestamps, and structured data in an easy-to-read format. In production, logs are output as JSON for better parsing and analysis.

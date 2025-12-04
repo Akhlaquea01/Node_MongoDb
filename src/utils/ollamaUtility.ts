@@ -1,6 +1,9 @@
 // utils/ollamaUtility
 
 import axios from 'axios';
+import logger from './logger.js';
+
+const ollamaLogger = logger.child({ module: 'ollama' });
 
 const config = {
     apiUrl: process.env.API_URL || 'http://localhost:11434/api/chat', // Default Ollama URL
@@ -24,7 +27,7 @@ export const parseResponse = (responseStr) => {
             const parsedChunk = JSON.parse(chunk);
             return parsedChunk?.message?.content || '';
         } catch (error) {
-            console.error('Error parsing chunk:', chunk);
+            ollamaLogger.warn({ chunk }, 'Error parsing chunk');
             return '';
         }
     });
@@ -52,7 +55,7 @@ export const getChatResponse = async (message) => {
         // Return the full concatenated response message
         return fullResponse;
     } catch (error) {
-        console.error('Error fetching chat response:', error.message);
+        ollamaLogger.error(error, 'Error fetching chat response', { model: config.model });
         return null;
     }
 };

@@ -2,6 +2,7 @@
 import connectDB from "./db/index.js";
 import { app } from './app.js';
 import { setupWebSocketServer } from "./utils/websocket.js";
+import logger from "./utils/logger.js";
 
 
 
@@ -12,11 +13,11 @@ connectDB()
 
         
         server.listen(process.env.PORT || 8000, () => {
-            console.log(`⚙️ Server is running at port : ${process.env.PORT}`);
+            logger.info({ port: process.env.PORT || 8000 }, '⚙️ Server is running');
         });
     })
     .catch((err) => {
-        console.log("MONGO db connection failed !!! ", err);
+        logger.error(err, "MongoDB connection failed");
     })
 
 /*
@@ -26,16 +27,16 @@ const app = express()
     try {
         await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`)
         app.on("errror", (error) => {
-            console.log("ERRR: ", error);
+            logger.error(error, "Application error");
             throw error
         })
 
         app.listen(process.env.PORT, () => {
-            console.log(`App is listening on port ${process.env.PORT}`);
+            logger.info({ port: process.env.PORT }, "App is listening");
         })
 
     } catch (error) {
-        console.error("ERROR: ", error)
+        logger.error(error, "ERROR")
         throw err
     }
 })()

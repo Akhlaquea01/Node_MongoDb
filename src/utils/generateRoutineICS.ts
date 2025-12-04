@@ -1,5 +1,8 @@
 import { writeFileSync } from 'fs';
 import { createEvents, EventAttributes } from 'ics';
+import logger from './logger.js';
+
+const icsLogger = logger.child({ module: 'ics-generator' });
 
 // Configuration
 const config = {
@@ -120,27 +123,35 @@ function generateMonthlyEvents(): EventAttributes[] {
 // Generate the calendar
 const monthlyEvents = generateMonthlyEvents();
 
-console.log(`📅 Generating calendar for ${config.year}-${config.month.toString().padStart(2, '0')}`);
-console.log(`📊 Total events to generate: ${monthlyEvents.length}`);
+const monthStr = config.month.toString().padStart(2, '0');
+icsLogger.info({ 
+    year: config.year, 
+    month: monthStr, 
+    eventCount: monthlyEvents.length 
+}, '📅 Generating calendar');
 
 createEvents(monthlyEvents, (error, value) => {
     if (error) {
-        console.log('❌ Error creating ICS file:', error);
+        icsLogger.error(error, '❌ Error creating ICS file');
         return;
     }
     
-    const filename = `monthly_routine_${config.year}_${config.month.toString().padStart(2, '0')}.ics`;
+    const filename = `monthly_routine_${config.year}_${monthStr}.ics`;
     writeFileSync(filename, value);
-    console.log(`✅ ICS file created: ${filename}`);
-    console.log(`📁 File location: ${process.cwd()}/${filename}`);
-    console.log(`📅 Calendar contains ${monthlyEvents.length} events for ${config.endDay - config.startDay + 1} days`);
     
-    // Print summary
-    console.log('\n📋 Activity Summary:');
+    const activitySummary: Record<string, number> = {};
     Object.entries(activities).forEach(([key, activity]) => {
         const eventCount = monthlyEvents.filter(e => e.title === activity.title).length;
-        console.log(`   ${activity.title}: ${eventCount} events`);
+        activitySummary[activity.title] = eventCount;
     });
+    
+    icsLogger.info({
+        filename,
+        fileLocation: `${process.cwd()}/${filename}`,
+        eventCount: monthlyEvents.length,
+        days: config.endDay - config.startDay + 1,
+        activitySummary
+    }, '✅ ICS file created successfully');
 });
 
 // Export for use in other modules

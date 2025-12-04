@@ -4,6 +4,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import NodeMediaServer from 'node-media-server';
 import fs from 'fs';
 import path from 'path';
+import logger from "../utils/logger.js";
+
+const streamingLogger = logger.child({ module: 'streaming' });
 
 // Node Media Server Configuration
 const config = {
@@ -43,33 +46,34 @@ const initializeLiveStreaming = () => {
 
         // Event listeners for monitoring
         nms.on('preConnect', (id, args) => {
-            console.log(`[NodeEvent on preConnect] id=${id} args=${JSON.stringify(args)}`);
+            streamingLogger.debug({ id, args }, 'NodeEvent: preConnect');
         });
 
         nms.on('postConnect', (id, args) => {
-            console.log(`[NodeEvent on postConnect] id=${id} args=${JSON.stringify(args)}`);
+            streamingLogger.debug({ id, args }, 'NodeEvent: postConnect');
         });
 
         nms.on('doneConnect', (id, args) => {
-            console.log(`[NodeEvent on doneConnect] id=${id} args=${JSON.stringify(args)}`);
+            streamingLogger.debug({ id, args }, 'NodeEvent: doneConnect');
         });
 
         nms.on('prePublish', (id, StreamPath, args) => {
-            console.log(`[NodeEvent on prePublish] id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
+            streamingLogger.info({ id, StreamPath, args }, 'NodeEvent: prePublish');
         });
 
         nms.on('postPublish', (id, StreamPath, args) => {
-            console.log(`[NodeEvent on postPublish] id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
+            streamingLogger.info({ id, StreamPath, args }, 'NodeEvent: postPublish');
         });
 
         nms.on('donePublish', (id, StreamPath, args) => {
-            console.log(`[NodeEvent on donePublish] id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
+            streamingLogger.info({ id, StreamPath, args }, 'NodeEvent: donePublish');
         });
 
         nms.run();
-        console.log('🚀 Node Media Server started');
-        console.log('📡 RTMP Server: rtmp://localhost:1935/live');
-        console.log('📹 HLS Server: http://localhost:8000/live');
+        streamingLogger.info({
+            rtmpUrl: 'rtmp://localhost:1935/live',
+            hlsUrl: 'http://localhost:8000/live'
+        }, '🚀 Node Media Server started');
     }
     return nms;
 };

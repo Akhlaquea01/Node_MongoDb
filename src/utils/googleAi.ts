@@ -1,4 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
+import logger from './logger.js';
+
+const aiLogger = logger.child({ module: 'google-ai' });
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API }); // Ensure API key is loaded properly
 
@@ -17,7 +20,7 @@ export async function getChatResponse(model, messages) {
 
         return response.candidates[0]?.content?.parts[0]?.text || "";
     } catch (error) {
-        console.error("Google GenAI API Error:", error);
+        aiLogger.error(error, "Google GenAI API Error", { model: model || process.env.GOOGLE_GENAI_MODEL });
         throw error;
     }
 }

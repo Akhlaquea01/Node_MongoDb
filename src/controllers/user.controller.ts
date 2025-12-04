@@ -5,6 +5,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { sendEmail, registrationEmail } from '../utils/email.js';
+import logger from "../utils/logger.js";
+
+const userLogger = logger.child({ module: 'user' });
 
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
@@ -15,9 +18,11 @@ const generateAccessAndRefereshTokens = async (userId) => {
         user.refreshToken = refreshToken;
         await user.save({ validateBeforeSave: false });
 
+        userLogger.debug({ userId: userId.toString() }, "Access and refresh tokens generated successfully");
         return { accessToken, refreshToken };
 
     } catch (error) {
+        userLogger.error(error, "Error generating access and refresh tokens", { userId: userId?.toString() });
         return { accessToken: null, refreshToken: null };
         // return new ApiResponse(500, undefined, "Something went wrong", error)
 
@@ -53,6 +58,7 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (existedUser) {
+        userLogger.warn({ username, email }, "Registration attempt with existing username or email");
         return res.status(409).json(
             new ApiResponse(409, undefined, "User with email or username already exists", new Error("User with email or username already exists"))
         );
@@ -100,6 +106,7 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 
     if (!createdUser) {
+        userLogger.error({ userId: user._id.toString() }, "User created but not found after creation");
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong while registering the user", new Error("Something went wrong while registering the user"))
         );
@@ -114,6 +121,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     sendEmail(mailOptions);
 
+    userLogger.info({ userId: createdUser._id.toString(), username, email }, "User registered successfully");
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered Successfully")
     );
@@ -140,6 +148,7 @@ const loginUser = asyncHandler(async (req, res) => {
     });
 
     if (!user) {
+        userLogger.warn({ username, email }, "Login attempt with non-existent user");
         return res.status(404).json(
             new ApiResponse(404, undefined, "User does not exist", new Error("User does not exist"))
         );
@@ -148,6 +157,7 @@ const loginUser = asyncHandler(async (req, res) => {
     const isPasswordValid = await user.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
+        userLogger.warn({ userId: user._id.toString(), username, email }, "Login attempt with invalid password");
         return res.status(401).json(
             new ApiResponse(401, undefined, "Invalid user credentials", new Error("Invalid user credentials"))
         );
@@ -155,6 +165,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
     if (accessToken === null || refreshToken === null) {
+        userLogger.error({ userId: user._id.toString() }, "Failed to generate tokens during login");
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", new Error("Something went wrong"))
         );
@@ -166,6 +177,7 @@ const loginUser = asyncHandler(async (req, res) => {
         secure: process.env.NODE_ENV === 'production'
     };
 
+    userLogger.info({ userId: user._id.toString(), username, email }, "User logged in successfully");
     return res
         .status(200)
         .cookie("accessToken", accessToken, options)
@@ -196,6 +208,7 @@ const logoutUser = asyncHandler(async (req, res) => {
         secure: true
     };
 
+    userLogger.info({ userId: req.user._id.toString() }, "User logged out successfully");
     // Clear the accessToken and refreshToken cookies and respond with a success message.
     return res
         .status(200)
@@ -223,12 +236,14 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const user = await User.findById(decodedToken?._id);
 
         if (!user) {
+            userLogger.warn({ decodedUserId: decodedToken?._id?.toString() }, "Refresh token verification failed - user not found");
             return res.status(401).json(
                 new ApiResponse(401, undefined, "Invalid refresh token", new Error("Invalid refresh token"))
             );
         }
 
         if (incomingRefreshToken !== user?.refreshToken) {
+            userLogger.warn({ userId: user._id.toString() }, "Refresh token mismatch - token expired or already used");
             return res.status(401).json(
                 new ApiResponse(401, undefined, "Refresh token is expired or used", new Error("Refresh token is expired or used"))
             );
@@ -241,6 +256,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
 
+        userLogger.info({ userId: user._id.toString() }, "Access token refreshed successfully");
         return res
             .status(200)
             .cookie("accessToken", accessToken, options)
@@ -253,6 +269,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
                 )
             );
     } catch (error) {
+        userLogger.error(error, "Error refreshing access token");
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", new Error("Something went wrong"))
         );
@@ -266,6 +283,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
     if (!isPasswordCorrect) {
+        userLogger.warn({ userId: req.user?._id.toString() }, "Password change attempt with invalid old password");
         return res.status(400).json(
             new ApiResponse(400, undefined, "Invalid old password", new Error("Invalid old password"))
         );
@@ -274,6 +292,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     user.password = newPassword;
     await user.save({ validateBeforeSave: false });
 
+    userLogger.info({ userId: req.user?._id.toString() }, "Password changed successfully");
     return res
         .status(200)
         .json(new ApiResponse(200, {}, "Password changed successfully"));
@@ -310,6 +329,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
     ).select("-password");
 
+    userLogger.info({ userId: req.user?._id.toString(), fullName, email }, "Account details updated successfully");
     return res
         .status(200)
         .json(new ApiResponse(200, user, "Account details updated successfully"));
@@ -327,6 +347,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatar = await uploadOnCloudinary(avatarLocalPath, 'avatar');
 
     if (!avatar.url) {
+        userLogger.error({ userId: req.user?._id.toString() }, "Error uploading avatar to Cloudinary");
         return res.status(400).json(
             new ApiResponse(400, undefined, "Error while uploading on avatar", new Error("Error while uploading on avatar"))
         );
@@ -335,6 +356,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user?._id).select("-password");
 
     if (!user) {
+        userLogger.warn({ userId: req.user?._id.toString() }, "User not found during avatar update");
         return res.status(404).json(
             new ApiResponse(404, undefined, "User not found", new Error("User not found"))
         );
@@ -342,11 +364,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     if (user.avatar) {
         await deleteFromCloudinaryByUrl(user.avatar, 'avatar');
+        userLogger.debug({ userId: user._id.toString(), oldAvatar: user.avatar }, "Old avatar deleted from Cloudinary");
     }
 
     user.avatar = avatar.url;
     await user.save();
 
+    userLogger.info({ userId: user._id.toString(), avatarUrl: avatar.url }, "Avatar image updated successfully");
     return res
         .status(200)
         .json(
@@ -366,6 +390,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user?._id).select("-password");
 
     if (!user) {
+        userLogger.warn({ userId: req.user?._id.toString() }, "User not found during cover image update");
         return res.status(404).json(
             new ApiResponse(404, undefined, "User not found", new Error("User not found"))
         );
@@ -373,11 +398,13 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     if (user.coverImage) {
         await deleteFromCloudinaryByUrl(user.coverImage, 'coverImage');
+        userLogger.debug({ userId: user._id.toString(), oldCoverImage: user.coverImage }, "Old cover image deleted from Cloudinary");
     }
 
     const coverImage = await uploadOnCloudinary(coverImageLocalPath, 'coverImage');
 
     if (!coverImage.url) {
+        userLogger.error({ userId: user._id.toString() }, "Error uploading cover image to Cloudinary");
         return res.status(400).json(
             new ApiResponse(400, undefined, "Error while uploading cover image", new Error("Error while uploading cover image"))
         );
@@ -386,6 +413,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     user.coverImage = coverImage.url;
     await user.save();
 
+    userLogger.info({ userId: user._id.toString(), coverImageUrl: coverImage.url }, "Cover image updated successfully");
     return res.status(200).json(
         new ApiResponse(200, user, "Cover image updated successfully")
     );
@@ -402,11 +430,14 @@ const getItemsFromCloudinary = asyncHandler(async (req, res) => {
         const item = await getAllItemsFromCloudinary(options);
 
         if (item) {
+            userLogger.debug({ options }, "Items fetched from Cloudinary successfully");
             return res.status(200).json(item);
         } else {
+            userLogger.warn({ options }, "Unable to fetch items from Cloudinary");
             return res.status(500).json({ message: 'Unable to fetch images from Cloudinary' });
         }
     } catch (error) {
+        userLogger.error(error, "Error fetching items from Cloudinary");
         return res.status(500).json(
             new ApiResponse(500, undefined, "Something went wrong", error)
         );
@@ -440,11 +471,13 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     ]);
 
     if (!channel?.length) {
+        userLogger.warn({ username }, "Channel not found");
         return res.status(404).json(
             new ApiResponse(404, undefined, "channel does not exists", new Error("channel does not exists"))
         );
     }
 
+    userLogger.debug({ username, channelId: channel[0]._id.toString() }, "User channel fetched successfully");
     return res
         .status(200)
         .json(
@@ -512,14 +545,17 @@ const getAllUsers = asyncHandler(async (req, res) => {
         const users = await User.find({}, "-password -refreshToken"); // Exclude sensitive fields
 
         if (!users.length) {
+            userLogger.debug("No users found in database");
             return res.status(204).json(new ApiResponse(204, null, "No users found"));
         }
 
+        userLogger.info({ totalUsers: users.length }, "All users fetched successfully");
         return res.status(200).json(new ApiResponse(200, {
             users,
             totalUsers: users.length || 0
         }, "Users fetched successfully"));
     } catch (error) {
+        userLogger.error(error, "Error fetching all users");
         return res.status(500).json(new ApiResponse(500, undefined, "Something went wrong", error));
     }
 });

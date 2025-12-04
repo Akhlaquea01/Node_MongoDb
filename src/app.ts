@@ -5,6 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerConfig } from './utils/swaggerConfig.js';
 import TelegramChatBot from './utils/telegramBot.js';
 import dotenv from 'dotenv';
+import logger from './utils/logger.js';
 dotenv.config();
 const app = express();
 
@@ -60,7 +61,11 @@ app.use("/api/v1/streaming", streamingRouter);
 // Error handling middleware (must be after all routes)
 // Express recognizes error handlers by having exactly 4 parameters
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("Error handler triggered:", err);
+    logger.error(err, "Error handler triggered", {
+        path: req.path,
+        method: req.method,
+        statusCode: err.statusCode || err.status || 500,
+    });
     
     // Don't send response if headers already sent
     if (res.headersSent) {
@@ -78,7 +83,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
             ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
         });
     } catch (error) {
-        console.error("Error sending error response:", error);
+        logger.error(error, "Error sending error response");
         res.status(500).end();
     }
 });

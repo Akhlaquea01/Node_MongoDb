@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer';
 import { ApiResponse } from './ApiResponse.js';
+import logger from './logger.js';
+
+const emailLogger = logger.child({ module: 'email' });
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -14,9 +17,10 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async (mailOptions) => {
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent:', info.messageId);
+        emailLogger.info({ messageId: info.messageId, to: mailOptions.to }, 'Email sent successfully');
     } catch (error) {
-      return new ApiResponse(500, undefined, "Something went wrong", error)
+        emailLogger.error(error, "Error sending email", { to: mailOptions.to });
+        return new ApiResponse(500, undefined, "Something went wrong", error)
 
     }
 };

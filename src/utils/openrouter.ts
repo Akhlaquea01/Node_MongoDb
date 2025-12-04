@@ -1,5 +1,8 @@
 import OpenAI from "openai";
+import logger from './logger.js';
 // import { parseResponse } from './ollamaUtility'
+
+const aiLogger = logger.child({ module: 'openrouter' });
 
 const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
@@ -23,7 +26,7 @@ export async function getChatResponse(model, messages) {
         // return parseResponse(completion.choices[0].message.content);
         return completion.choices[0].message.content;
     } catch (error) {
-        console.error("OpenAI API Error:", error);
+        aiLogger.error(error, "OpenAI API Error", { model: model || process.env.OPENROUTER_AI_MODEL });
         throw error;
     }
 }
