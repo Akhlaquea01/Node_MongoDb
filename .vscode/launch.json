@@ -8,23 +8,24 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
+            "runtimeExecutable": "node",
+            "runtimeArgs": [
+                "--import=tsx",
+                "-r",
+                "dotenv/config"
+            ],
             "program": "${workspaceFolder}/src/index.ts",
             "envFile": "${workspaceFolder}/.env",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "runtimeArgs": [
-                "--loader",
-                "ts-node/esm",
-                "--env-file=.env"
-            ],
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
-            ],
             "sourceMaps": true,
             "resolveSourceMapLocations": [
                 "${workspaceFolder}/dist/**/*.js",
                 "${workspaceFolder}/src/**/*.ts"
-            ]
+            ],
+            "env": {
+                "NODE_OPTIONS": "--import=tsx"
+            }
         }
     ]
 }

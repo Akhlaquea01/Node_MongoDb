@@ -3,7 +3,7 @@
   "info": {
     "title": "My API",
     "version": "1.0.0",
-    "description": "API Documentation"
+    "description": "API Documentation - All endpoints make REAL database calls and return ACTUAL data. Click 'Try it out' and 'Execute' to test endpoints with live data."
   },
   "host": "localhost:5000",
   "basePath": "/api/v1/",
@@ -23,6 +23,49 @@
       "BearerAuth": []
     }
   ],
+  "definitions": {
+    "ApiResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "number",
+          "description": "HTTP status code"
+        },
+        "data": {
+          "description": "Response data (can be any type)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Response message"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the request was successful"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "type": "number",
+          "example": 400
+        },
+        "data": {
+          "type": "null",
+          "example": null
+        },
+        "message": {
+          "type": "string",
+          "example": "Error message"
+        },
+        "success": {
+          "type": "boolean",
+          "example": false
+        }
+      }
+    }
+  },
   "paths": {
     "/users/register": {
       "post": {
@@ -1146,6 +1189,926 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/cron/status": {
+      "get": {
+        "summary": "Get status of all cron tasks",
+        "description": "Returns the status of all currently running cron tasks",
+        "tags": ["Cron"],
+        "responses": {
+          "200": {
+            "description": "Cron tasks status retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "taskId": {
+                            "type": "string",
+                            "example": "minute-task"
+                          },
+                          "running": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Cron tasks status retrieved successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cron/initialize": {
+      "post": {
+        "summary": "Initialize all default cron tasks",
+        "description": "Starts all predefined cron tasks (minute, hourly, daily, weekly, monthly, etc.)",
+        "tags": ["Cron"],
+        "responses": {
+          "200": {
+            "description": "All cron tasks initialized successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "null",
+                  "example": null
+                },
+                "message": {
+                  "type": "string",
+                  "example": "All cron tasks initialized successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cron/stop-all": {
+      "post": {
+        "summary": "Stop all cron tasks",
+        "tags": ["Cron"],
+        "responses": {
+          "200": {
+            "description": "All cron tasks stopped successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "null",
+                  "example": null
+                },
+                "message": {
+                  "type": "string",
+                  "example": "All cron tasks stopped successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cron/task/{taskId}/start": {
+      "post": {
+        "summary": "Start a specific cron task",
+        "description": "Start a cron task by its ID. Available task IDs: minute, five-minute, hourly, daily, scheduled-daily, weekday, weekly, monthly, thirty-second, multiple-daily, business-hours",
+        "tags": ["Cron"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "type": "string",
+            "required": true,
+            "description": "Task ID",
+            "enum": ["minute", "five-minute", "hourly", "daily", "scheduled-daily", "weekday", "weekly", "monthly", "thirty-second", "multiple-daily", "business-hours"]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cron task started successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "null",
+                  "example": null
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Cron task started successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cron task not found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 404
+                },
+                "data": {
+                  "type": "null",
+                  "example": null
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Cron task not found"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cron/task/{taskId}/stop": {
+      "post": {
+        "summary": "Stop a specific cron task",
+        "tags": ["Cron"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "type": "string",
+            "required": true,
+            "description": "Task ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cron task stopped successfully"
+          },
+          "404": {
+            "description": "Cron task not found"
+          }
+        }
+      }
+    },
+    "/cron/task/{taskId}/resume": {
+      "post": {
+        "summary": "Resume a stopped cron task",
+        "tags": ["Cron"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "type": "string",
+            "required": true,
+            "description": "Task ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cron task resumed successfully"
+          },
+          "404": {
+            "description": "Cron task not found"
+          }
+        }
+      }
+    },
+    "/cron/custom": {
+      "post": {
+        "summary": "Create a custom cron task",
+        "tags": ["Cron"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["cronExpression", "taskName"],
+              "properties": {
+                "cronExpression": {
+                  "type": "string",
+                  "example": "0 9 * * *",
+                  "description": "Cron expression (e.g., '0 9 * * *' for 9 AM daily)"
+                },
+                "taskName": {
+                  "type": "string",
+                  "example": "my-custom-task",
+                  "description": "Unique name for the task"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "My custom task description",
+                  "description": "Optional description"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Custom cron task created successfully"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/agenda/jobs/now": {
+      "post": {
+        "summary": "Schedule a job to run immediately",
+        "description": "Schedule an Agenda job to execute right away. Available job types: process-data, send-email, process-image, generate-report, cleanup-old-data, send-webhook, backup-data, send-notification, recurring-task, process-batch",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["jobName"],
+              "properties": {
+                "jobName": {
+                  "type": "string",
+                  "enum": ["process-data", "send-email", "process-image", "generate-report", "cleanup-old-data", "send-webhook", "backup-data", "send-notification", "recurring-task", "process-batch"],
+                  "example": "process-data",
+                  "description": "Name of the job type to execute"
+                },
+                "data": {
+                  "type": "object",
+                  "example": { "userId": "123", "action": "process" },
+                  "description": "Data to pass to the job"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Job scheduled to run now",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 201
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "507f1f77bcf86cd799439011"
+                    },
+                    "jobName": {
+                      "type": "string",
+                      "example": "process-data"
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2024-12-06T20:00:00.000Z"
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Job scheduled to run now"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 400
+                },
+                "data": {
+                  "type": "null",
+                  "example": null
+                },
+                "message": {
+                  "type": "string",
+                  "example": "jobName is required"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs": {
+      "post": {
+        "summary": "Schedule a job for a specific time or relative time",
+        "description": "Schedule an Agenda job to run at a future date/time. Supports absolute time (ISO date string) or relative time (number of seconds or string like 'in 30 seconds'). Examples: 30 (runs in 30 seconds), 'in 5 minutes', 'in 1 hour', '2024-12-25T10:00:00Z' (absolute time)",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["jobName", "when"],
+              "properties": {
+                "jobName": {
+                  "type": "string",
+                  "enum": ["process-data", "send-email", "process-image", "generate-report", "cleanup-old-data", "send-webhook", "backup-data", "send-notification", "recurring-task", "process-batch"],
+                  "example": "send-email",
+                  "description": "Name of the job type"
+                },
+                "when": {
+                  "oneOf": [
+                    {
+                      "type": "number",
+                      "example": 30,
+                      "description": "Number of seconds from now (e.g., 30 = run in 30 seconds)"
+                    },
+                    {
+                      "type": "string",
+                      "example": "in 5 minutes",
+                      "description": "Relative time string: 'in 30 seconds', 'in 5 minutes', 'in 1 hour', 'in 1 day', or ISO 8601 date-time for absolute time"
+                    }
+                  ]
+                },
+                "data": {
+                  "type": "object",
+                  "example": { "to": "user@example.com", "subject": "Hello", "body": "Test email" },
+                  "description": "Data to pass to the job"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Job scheduled successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 201
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "507f1f77bcf86cd799439011"
+                    },
+                    "jobName": {
+                      "type": "string",
+                      "example": "send-email"
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-12-06T20:00:00.000Z"
+                    },
+                    "currentTime": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-12-06T16:15:22.748Z"
+                    },
+                    "timeUntilExecution": {
+                      "type": "number",
+                      "example": 13777252,
+                      "description": "Milliseconds until job execution"
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Job scheduled successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get all jobs (with optional filters)",
+        "description": "Retrieve all Agenda jobs, optionally filtered by name or status. Each job includes status, execution times, and time until execution.",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "jobName",
+            "type": "string",
+            "required": false,
+            "description": "Filter by job name (e.g., 'process-data', 'send-email')"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "enum": ["running", "failed", "scheduled", "completed"],
+            "required": false,
+            "description": "Filter by job status: 'running' (currently executing), 'failed' (has failed), 'scheduled' (waiting to run), 'completed' (finished)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jobs retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "jobs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "jobId": {
+                            "type": "string",
+                            "example": "507f1f77bcf86cd799439011"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "send-email"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["running", "failed", "scheduled", "completed"],
+                            "example": "scheduled",
+                            "description": "Current job status"
+                          },
+                          "data": {
+                            "type": "object",
+                            "example": { "to": "user@example.com", "subject": "Hello" }
+                          },
+                          "nextRunAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-12-06T20:00:00.000Z",
+                            "description": "When the job will run next"
+                          },
+                          "lastRunAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-12-06T16:00:00.000Z",
+                            "description": "When the job last ran"
+                          },
+                          "lastFinishedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-12-06T16:00:05.000Z",
+                            "description": "When the job last finished"
+                          },
+                          "lockedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-12-06T16:00:00.000Z",
+                            "description": "When the job was locked (started running), null if not running"
+                          },
+                          "failedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": null,
+                            "description": "When the job failed, null if not failed"
+                          },
+                          "failCount": {
+                            "type": "number",
+                            "example": 0,
+                            "description": "Number of times the job has failed"
+                          },
+                          "failReason": {
+                            "type": "string",
+                            "example": null,
+                            "description": "Reason for failure, if any"
+                          },
+                          "repeatInterval": {
+                            "type": "string",
+                            "example": null,
+                            "description": "Recurring interval (e.g., '1 day'), null for one-time jobs"
+                          },
+                          "timeUntilExecution": {
+                            "type": "number",
+                            "example": 13777252,
+                            "description": "Milliseconds until execution (for scheduled jobs)"
+                          },
+                          "isRunning": {
+                            "type": "boolean",
+                            "example": false,
+                            "description": "Whether the job is currently running"
+                          },
+                          "isFailed": {
+                            "type": "boolean",
+                            "example": false,
+                            "description": "Whether the job has failed"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "type": "number",
+                      "example": 10,
+                      "description": "Total number of jobs returned"
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Jobs retrieved successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/recurring": {
+      "post": {
+        "summary": "Schedule a recurring job",
+        "description": "Schedule a job to run repeatedly at specified intervals (e.g., '5 minutes', '1 hour', '1 day')",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["jobName", "interval"],
+              "properties": {
+                "jobName": {
+                  "type": "string",
+                  "enum": ["process-data", "send-email", "process-image", "generate-report", "cleanup-old-data", "send-webhook", "backup-data", "send-notification", "recurring-task", "process-batch"],
+                  "example": "cleanup-old-data",
+                  "description": "Name of the job type"
+                },
+                "interval": {
+                  "type": "string",
+                  "example": "30 seconds",
+                  "description": "Interval string (e.g., '30 seconds', '5 minutes', '1 hour', '1 day')"
+                },
+                "data": {
+                  "type": "object",
+                  "example": { "daysOld": 30 },
+                  "description": "Data to pass to the job"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recurring job scheduled successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/running": {
+      "get": {
+        "summary": "Get all running jobs",
+        "tags": ["Agenda"],
+        "responses": {
+          "200": {
+            "description": "Running jobs retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/failed": {
+      "get": {
+        "summary": "Get all failed jobs",
+        "tags": ["Agenda"],
+        "responses": {
+          "200": {
+            "description": "Failed jobs retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/name/{jobName}": {
+      "get": {
+        "summary": "Get jobs by name",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobName",
+            "type": "string",
+            "required": true,
+            "description": "Job name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jobs retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/{jobId}": {
+      "get": {
+        "summary": "Get a specific job by ID with full status details",
+        "description": "Retrieve detailed information about a specific job including status, execution times, and time until execution",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "type": "string",
+            "required": true,
+            "description": "Job ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job retrieved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statusCode": {
+                  "type": "number",
+                  "example": 200
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "507f1f77bcf86cd799439011"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "send-email"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["running", "failed", "scheduled", "completed"],
+                      "example": "scheduled",
+                      "description": "Current job status"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": { "to": "user@example.com", "subject": "Hello" }
+                    },
+                    "nextRunAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-12-06T20:00:00.000Z"
+                    },
+                    "lastRunAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-12-06T16:00:00.000Z"
+                    },
+                    "lastFinishedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-12-06T16:00:05.000Z"
+                    },
+                    "lockedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": null
+                    },
+                    "failedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": null
+                    },
+                    "failCount": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "failReason": {
+                      "type": "string",
+                      "example": null
+                    },
+                    "repeatInterval": {
+                      "type": "string",
+                      "example": null
+                    },
+                    "timeUntilExecution": {
+                      "type": "number",
+                      "example": 13777252,
+                      "description": "Milliseconds until execution (for scheduled jobs)"
+                    },
+                    "isRunning": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "isFailed": {
+                      "type": "boolean",
+                      "example": false
+                    }
+                  }
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Job retrieved successfully"
+                },
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/{jobId}/cancel": {
+      "post": {
+        "summary": "Cancel a job",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "type": "string",
+            "required": true,
+            "description": "Job ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job cancelled successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/jobs/{jobId}/retry": {
+      "post": {
+        "summary": "Retry a failed job",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "type": "string",
+            "required": true,
+            "description": "Job ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job retried successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/test": {
+      "post": {
+        "summary": "Test agenda by scheduling a job immediately",
+        "tags": ["Agenda"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "jobName": {
+                  "type": "string",
+                  "example": "process-data",
+                  "description": "Job name (default: 'process-data')"
+                },
+                "data": {
+                  "type": "object",
+                  "description": "Data to pass to the job"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test job scheduled successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/agenda/status": {
+      "get": {
+        "summary": "Get agenda status and diagnostics",
+        "description": "Get comprehensive status of Agenda service including job counts and MongoDB collection info",
+        "tags": ["Agenda"],
+        "responses": {
+          "200": {
+            "description": "Agenda status retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
           }
         }
       }

@@ -31,12 +31,42 @@ if (process.env.TELEGRAM_BOT_ENABLE === 'START') {
 app.use(securityHeaders);
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || "*", // Allow all origins for Swagger UI
     credentials: true
 }));
 
-// Serve Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerConfig));
+// Serve Swagger UI with options to enable real API calls
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerConfig, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: "API Documentation",
+    swaggerOptions: {
+        persistAuthorization: true, // Persist auth token across page refreshes
+        displayRequestDuration: true, // Show how long requests take
+        filter: true, // Enable search/filter
+        tryItOutEnabled: true, // Enable "Try it out" by default
+        requestSnippetsEnabled: true, // Show code snippets
+        requestInterceptor: (req: any) => {
+            // Ensure Authorization header is sent and cookies are not used for Swagger requests
+            // This prevents using cached cookies from previous logins
+            if (req.url && req.url.includes('/api/v1/')) {
+                // Remove cookies for Swagger requests to force using Authorization header
+                delete req.headers.cookie;
+            }
+            return req;
+        },
+        requestSnippets: {
+            generators: {
+                curl_bash: {
+                    title: "cURL (bash)"
+                },
+                curl_powershell: {
+                    title: "cURL (PowerShell)"
+                }
+            }
+        }
+    }
+}));
 
 // Body parsing middleware
 app.use(express.json({ limit: "16kb" }));
@@ -192,6 +222,8 @@ import healthcheckRouter from "./routes/healthcheck.routes.js";
 import videoRouter from "./routes/video.routes.js";
 import icsRouter from "./routes/ics.routes.js";
 import streamingRouter from "./routes/streaming.routes.js";
+import cronRouter from "./routes/cron.routes.js";
+import agendaRouter from "./routes/agenda.routes.js";
 
 //routes declaration
 app.use("/api/v1/healthcheck", healthcheckRouter);
@@ -199,6 +231,8 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/videos", videoRouter);
 app.use("/api/v1/ics", icsRouter);
 app.use("/api/v1/streaming", streamingRouter);
+app.use("/api/v1/cron", cronRouter);
+app.use("/api/v1/agenda", agendaRouter);
 
 // http://localhost:8000/api/v1/users/register
 
