@@ -89,3 +89,42 @@
 
 24. **@opentelemetry/semantic-conventions** (^1.38.0): 
    - Semantic Conventions provides standardized attribute names and values for OpenTelemetry telemetry data. It defines common attributes like service names, HTTP methods, status codes, database names, and more, ensuring consistency across different observability platforms. Using semantic conventions helps maintain compatibility and makes telemetry data more meaningful and searchable in observability tools.
+
+25. **jest** (^30.2.0): 
+   - Jest is a comprehensive JavaScript testing framework developed by Facebook. It provides a complete testing solution with built-in test runner, assertion library, mocking capabilities, and code coverage reporting. Jest is designed to work out of the box with zero configuration, making it easy to write and run tests. It supports snapshot testing, parallel test execution, and has excellent TypeScript support through ts-jest.
+
+26. **@types/jest** (^30.0.0): 
+   - TypeScript type definitions for Jest. This package provides TypeScript support for Jest's API, enabling type checking and IntelliSense when writing tests in TypeScript. It includes types for test functions, matchers, mocks, and all Jest utilities.
+
+27. **ts-jest** (^29.4.6): 
+   - TypeScript preprocessor for Jest that allows you to write tests in TypeScript. It transpiles TypeScript test files on the fly, enabling Jest to run TypeScript tests directly without a separate compilation step. ts-jest handles TypeScript configuration, path mapping, and ES module support, making it seamless to test TypeScript code.
+
+28. **supertest** (^7.1.4): 
+   - Supertest is a high-level abstraction for testing HTTP servers. It provides a fluent API for making HTTP assertions in your tests, making it easy to test Express.js routes and middleware. Supertest allows you to test your API endpoints by sending requests and asserting on responses, status codes, headers, and body content. It's the standard tool for integration testing of Express applications.
+
+29. **@types/supertest** (^6.0.3): 
+   - TypeScript type definitions for Supertest, providing type safety when writing API tests in TypeScript.
+
+30. **@faker-js/faker** (^10.1.0): 
+   - Faker.js is a library for generating massive amounts of fake data for testing and development. It can generate realistic fake data for names, addresses, emails, phone numbers, dates, and much more. This is extremely useful for creating test fixtures, seeding databases, and generating mock data for unit and integration tests. It helps make tests more realistic and comprehensive.
+
+31. **eslint** (^9.39.1): 
+   - ESLint is a pluggable JavaScript and TypeScript linter that identifies and reports on patterns found in code. It helps maintain code quality and consistency by enforcing coding standards and catching potential bugs. ESLint can be configured with custom rules and integrates with most editors and CI/CD pipelines. Version 9 uses the new flat config format for better performance and flexibility.
+
+32. **@typescript-eslint/parser** (^8.48.1): 
+   - The official TypeScript parser for ESLint. It allows ESLint to parse TypeScript code, enabling linting of TypeScript files with full type-aware rules. The parser understands TypeScript syntax and can provide more accurate linting based on type information.
+
+33. **@typescript-eslint/eslint-plugin** (^8.48.1): 
+   - ESLint plugin that provides TypeScript-specific linting rules. It includes rules for TypeScript best practices, type safety, and common pitfalls. The plugin works with the TypeScript parser to provide comprehensive linting for TypeScript codebases.
+
+34. **typescript-eslint** (^8.48.1): 
+   - The complete TypeScript ESLint tooling package that bundles the parser, plugin, and configuration presets. It provides recommended configurations and utilities for setting up ESLint with TypeScript projects.
+
+35. **@eslint/js** (^9.39.1): 
+   - The core JavaScript rules for ESLint v9. This package contains the recommended JavaScript linting rules and is required for ESLint's new flat config system.
+
+36. **husky** (^9.1.7): 
+   - Husky is a tool that makes it easy to use Git hooks. It allows you to run scripts at various Git lifecycle events (pre-commit, pre-push, etc.). Husky ensures that code quality checks, tests, and other validations run automatically before commits are made, helping maintain code quality and preventing bad code from entering the repository. It's configured to run lint-staged on pre-commit to check only staged files.
+
+37. **lint-staged** (^16.2.7): 
+   - Lint-staged runs linters and formatters on Git staged files only, making pre-commit hooks fast and efficient. Instead of linting the entire codebase, it only processes files that are about to be committed. This significantly speeds up the pre-commit process and ensures that only the code being committed is checked. It's configured to run ESLint with auto-fix on TypeScript files.
