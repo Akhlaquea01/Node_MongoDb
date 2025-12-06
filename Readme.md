@@ -65,3 +65,27 @@
 
 16. **pino-pretty** (^13.1.3): 
    - pino-pretty is a development tool that formats Pino logs in a human-readable way. It provides colorized, formatted output for better readability during development. It automatically detects when running in a development environment and formats logs with colors, timestamps, and structured data in an easy-to-read format. In production, logs are output as JSON for better parsing and analysis.
+
+17. **@opentelemetry/api** (^1.9.0): 
+   - OpenTelemetry API is the core package that provides the public API for OpenTelemetry in Node.js applications. It defines the interfaces and types for creating traces, spans, metrics, and context propagation. This package is used throughout the application to interact with OpenTelemetry instrumentation, allowing you to create custom spans, add attributes, and record exceptions for observability.
+
+18. **@opentelemetry/auto-instrumentations-node** (^0.67.2): 
+   - Auto-instrumentations-node automatically instruments popular Node.js libraries and frameworks (Express, HTTP, MongoDB, etc.) without requiring manual code changes. It provides automatic tracing for HTTP requests, database queries, and other common operations, making it easy to add observability to your application with minimal configuration. This package is essential for automatically capturing telemetry data from Express routes and other Node.js modules.
+
+19. **@opentelemetry/exporter-metrics-otlp-http** (^0.208.0): 
+   - This package provides an HTTP exporter for OpenTelemetry metrics using the OTLP (OpenTelemetry Protocol) format. It sends metrics data to observability backends like SigNoz, allowing you to monitor application performance, resource usage, and custom business metrics. The HTTP exporter is used to transmit metrics data to the OpenTelemetry collector or compatible backends.
+
+20. **@opentelemetry/exporter-trace-otlp-http** (^0.208.0): 
+   - This package provides an HTTP exporter for OpenTelemetry traces using the OTLP format. It sends distributed tracing data to observability backends, enabling you to track requests across services, identify performance bottlenecks, and debug issues. The HTTP exporter transmits trace data to the OpenTelemetry collector or compatible backends like SigNoz.
+
+21. **@opentelemetry/resources** (^2.2.0): 
+   - Resources package provides utilities for creating and managing OpenTelemetry resource attributes. Resources represent the entity (service, host, etc.) that produces telemetry data. This package helps define service metadata such as service name, version, deployment environment, and other attributes that help identify and filter telemetry data in observability platforms.
+
+22. **@opentelemetry/sdk-metrics** (^2.2.0): 
+   - SDK Metrics provides the implementation for the OpenTelemetry Metrics API. It handles metric collection, aggregation, and export. This package is responsible for managing metric readers, exporters, and the metric collection pipeline, enabling you to collect and export application metrics (counters, gauges, histograms) to observability backends.
+
+23. **@opentelemetry/sdk-node** (^0.208.0): 
+   - SDK Node is the main OpenTelemetry SDK package for Node.js applications. It provides the NodeSDK class that initializes and configures OpenTelemetry instrumentation, including trace exporters, metric readers, resource attributes, and auto-instrumentations. This is the core package that ties together all OpenTelemetry components and must be initialized before any application code runs.
+
+24. **@opentelemetry/semantic-conventions** (^1.38.0): 
+   - Semantic Conventions provides standardized attribute names and values for OpenTelemetry telemetry data. It defines common attributes like service names, HTTP methods, status codes, database names, and more, ensuring consistency across different observability platforms. Using semantic conventions helps maintain compatibility and makes telemetry data more meaningful and searchable in observability tools.
