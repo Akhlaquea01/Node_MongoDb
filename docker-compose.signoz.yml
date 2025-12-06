@@ -1,0 +1,139 @@
+services:
+  # ClickHouse - Time-series database for storing traces, metrics, and logs
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.5.6
+    container_name: signoz-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native protocol
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-users.xml:/etc/clickhouse-server/users.d/default-password.xml
+      - ./clickhouse-cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+    environment:
+      - CLICKHOUSE_SKIP_USER_SETUP=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - signoz-net
+    restart: unless-stopped
+
+  # Zookeeper - Required for ClickHouse clustering (even in standalone mode)
+  zookeeper:
+    image: signoz/zookeeper:3.7.1
+    container_name: signoz-zookeeper
+    environment:
+      - ZOO_SERVER_ID=1
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_AUTOPURGE_INTERVAL=1
+    volumes:
+      - zookeeper-data:/bitnami/zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - signoz-net
+    restart: unless-stopped
+
+  # OpenTelemetry Collector - Receives telemetry data from your application
+  otel-collector:
+    image: signoz/signoz-otel-collector:v0.129.12
+    container_name: signoz-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+      schema-migrator:
+        condition: service_completed_successfully
+    networks:
+      - signoz-net
+    restart: unless-stopped
+
+  # Schema Migrator - Sets up database schema
+  schema-migrator:
+    image: signoz/signoz-schema-migrator:v0.129.12
+    container_name: signoz-schema-migrator
+    command:
+      - sync
+      - --dsn=tcp://clickhouse:9000
+      - --up=
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - signoz-net
+    restart: on-failure
+
+  # SigNoz Query Service - Backend API and Frontend UI
+  signoz:
+    image: signoz/signoz:v0.104.0
+    container_name: signoz
+    ports:
+      - "8080:8080"  # SigNoz API and UI (frontend) - Access at http://localhost:8080
+    environment:
+      - SIGNOZ_ALERTMANAGER_PROVIDER=signoz
+      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
+      - STORAGE=clickhouse
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone-amd
+      - DOT_METRICS_ENABLED=true
+    volumes:
+      - signoz-data:/var/lib/signoz/
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      schema-migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - signoz-net
+    restart: unless-stopped
+
+networks:
+  signoz-net:
+    name: signoz-net
+    driver: bridge
+
+volumes:
+  clickhouse-data:
+    name: signoz-clickhouse-data
+  zookeeper-data:
+    name: signoz-zookeeper-data
+  signoz-data:
+    name: signoz-data
+
+# HOW TO RUN SIGNOZ WITH THIS DOCKER COMPOSE FILE:
+# 1. Start all services:
+#    docker-compose -f docker-compose.signoz.yml up -d
+#
+# 2. Access the SigNoz dashboard at: http://localhost:8080/
+#
+# 3. To import a dashboard (e.g., dashboard.json) into SigNoz, use the SigNoz UI.
+#
+# Default SigNoz credentials (if applicable):
+#   User: pd
+#   Password: Akhlaque@1234

@@ -1,3 +1,5 @@
+// IMPORTANT: Import instrumentation FIRST before any other application code
+import './instrumentation.js';
 
 import connectDB from "./db/index.js";
 import { app } from './app.js';
