@@ -40,7 +40,7 @@ parentPort?.on('message', (data: WorkerTask) => {
         result = (data.a || 0) * (data.b || 0);
         break;
         
-      case 'count':
+      case 'count': {
         // Simulate some work
         let count = 0;
         const target = data.number || 0;
@@ -49,13 +49,14 @@ parentPort?.on('message', (data: WorkerTask) => {
         }
         result = count;
         break;
+      }
         
       case 'process':
         // Process some data
         result = (data.items || []).map(item => item * 2);
         break;
         
-      case 'cpuIntensive':
+      case 'cpuIntensive': {
         // CPU-intensive task for performance testing
         const iterations = data.iterations || 1000000;
         let cpuResult = 0;
@@ -64,6 +65,7 @@ parentPort?.on('message', (data: WorkerTask) => {
         }
         result = cpuResult;
         break;
+      }
         
       default:
         result = 'Unknown task';

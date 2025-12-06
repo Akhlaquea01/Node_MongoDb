@@ -81,14 +81,14 @@ const generateICS = asyncHandler(async (req, res) => {
                 }
 
                 let eventDay = day;
-                let eventHour = activity.startHour;
-                let eventMinute = activity.startMinute;
+                const eventHour = activity.startHour;
+                const eventMinute = activity.startMinute;
 
                 // Handle midnight events (next day)
                 if (activity.startHour === 0) {
                     eventDay = day + 1;
                     // Skip if next day exceeds month
-                    if (eventDay > daysInMonth) return;
+                    if (eventDay > daysInMonth) {return;}
                 }
 
                 events.push({

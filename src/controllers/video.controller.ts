@@ -40,7 +40,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     }
 
     // Sorting
-    let sortField = {};
+    const sortField = {};
     if (sortBy && sortType) {
         sortField[sortBy] = sortType === "asc" ? 1 : -1;
     } else {
@@ -296,7 +296,7 @@ const downloadVideoById = async (req, res, next) => {
             // Clean up the file after sending
             stream.on('end', () => {
                 fs.unlink(localFilePath, (err) => {
-                    if (err) videoLogger.error(err, 'Error deleting temp file');
+                    if (err) {videoLogger.error(err, 'Error deleting temp file');}
                 });
             });
 

@@ -87,19 +87,19 @@ function generateMonthlyEvents(): EventAttributes[] {
     
     for (let day = config.startDay; day <= config.endDay; day++) {
         // Skip if day is invalid for the month
-        if (day > 31) break;
+        if (day > 31) {break;}
         
         // Generate events for each day
         Object.values(activities).forEach(activity => {
             let eventDay = day;
-            let eventHour = activity.startHour;
-            let eventMinute = activity.startMinute;
+            const eventHour = activity.startHour;
+            const eventMinute = activity.startMinute;
             
             // Handle midnight events (next day)
             if (activity.startHour === 0) {
                 eventDay = day + 1;
                 // Skip if next day exceeds month
-                if (eventDay > 31) return;
+                if (eventDay > 31) {return;}
             }
             
             events.push({

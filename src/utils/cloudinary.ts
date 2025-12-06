@@ -12,7 +12,7 @@ cloudinary.config({
 // Function to upload a file to Cloudinary
 const uploadOnCloudinary = async (localFilePath, folder = '') => {
     try {
-        if (!localFilePath) return null;
+        if (!localFilePath) {return null;}
         const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto",
             folder: folder // Include folder parameter in the upload options
@@ -85,10 +85,10 @@ const getAllItemsFromCloudinary = async (options:any = {}) => {
 
 // Function to validate Cloudinary URL format
 const isValidCloudinaryUrl = (url) => {
-    if (!url || typeof url !== 'string') return false;
+    if (!url || typeof url !== 'string') {return false;}
     
     // Check if it's a valid Cloudinary URL format
-    const cloudinaryPattern = /^https?:\/\/res\.cloudinary\.com\/[^\/]+\/(image|video|raw|auto)\/upload\/.*$/;
+    const cloudinaryPattern = /^https?:\/\/res\.cloudinary\.com\/[^/]+\/(image|video|raw|auto)\/upload\/.*$/;
     return cloudinaryPattern.test(url);
 };
 
@@ -104,7 +104,7 @@ const checkCloudinaryUrlExists = async (url) => {
 
 // Function to attempt to fix corrupted Cloudinary URLs
 const attemptUrlFix = (url) => {
-    if (!url) return null;
+    if (!url) {return null;}
     
     // Check if URL is missing protocol
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
