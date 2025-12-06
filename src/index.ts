@@ -20,7 +20,23 @@ connectDB()
     })
     .catch((err) => {
         logger.error(err, "MongoDB connection failed");
-    })
+        process.exit(1);
+    });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error({ reason, promise }, 'Unhandled Rejection at Promise');
+    // Don't exit in development, but log the error
+    if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
+    }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error(error, 'Uncaught Exception');
+    process.exit(1);
+});
 
 /*
 import express from "express"

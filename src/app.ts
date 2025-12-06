@@ -7,13 +7,14 @@ import TelegramChatBot from './utils/telegramBot.js';
 import dotenv from 'dotenv';
 import logger from './utils/logger.js';
 import { trace, SpanStatusCode, context as otelContext } from '@opentelemetry/api';
+import { securityHeaders, apiLimiter, sanitizeMongo } from './middlewares/security.middleware.js';
 dotenv.config();
 const app = express();
 
 
 
 
-if (process.env.TELEGRAM_BOT_ENABLE=='START') {
+if (process.env.TELEGRAM_BOT_ENABLE === 'START') {
     const token = process.env.YOUR_TELEGRAM_BOT_TOKEN;
 
     // Create an instance of TelegramChatBot
@@ -26,20 +27,29 @@ if (process.env.TELEGRAM_BOT_ENABLE=='START') {
     bot.handleSummaryCommand();
 }
 
+// Security: Helmet - Set secure HTTP headers (must be early in middleware chain)
+app.use(securityHeaders);
+
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true
 }));
 
-
 // Serve Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerConfig));
 
-
+// Body parsing middleware
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+
+// Security: MongoDB sanitization - Prevent NoSQL injection (after body parsing)
+app.use(sanitizeMongo);
+
 app.use(express.static("public"));
 app.use(cookieParser());
+
+// Security: Rate limiting - Apply to all API routes (after static files)
+app.use('/api', apiLimiter);
 
 // OpenTelemetry response interceptor - marks spans as errors for status codes >= 400
 // This middleware MUST run early to capture all responses

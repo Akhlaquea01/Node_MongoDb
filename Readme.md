@@ -128,3 +128,18 @@
 
 37. **lint-staged** (^16.2.7): 
    - Lint-staged runs linters and formatters on Git staged files only, making pre-commit hooks fast and efficient. Instead of linting the entire codebase, it only processes files that are about to be committed. This significantly speeds up the pre-commit process and ensures that only the code being committed is checked. It's configured to run ESLint with auto-fix on TypeScript files.
+
+38. **helmet** (^8.0.0): 
+   - Helmet is a collection of middleware functions that set HTTP response headers to help secure Express applications. It protects against common web vulnerabilities such as cross-site scripting (XSS), clickjacking, and other injection attacks. Helmet sets various security headers like Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, and Strict-Transport-Security. It's an industry-standard security middleware that should be used in all production Express applications.
+
+39. **express-rate-limit** (^7.4.1): 
+   - Express-rate-limit is a middleware that limits repeated requests to public APIs and endpoints. It helps prevent abuse, brute-force attacks, and DDoS attacks by limiting the number of requests a client can make within a specified time window. The middleware can be configured globally or per-route, with different limits for different endpoints. It's essential for protecting authentication endpoints and preventing API abuse.
+
+40. **express-validator** (^7.2.0): 
+   - Express-validator is a set of express.js middlewares that wraps validator.js validator and sanitizer functions. It provides a convenient way to validate and sanitize user input in Express routes. The library offers chainable validation methods for request body, query parameters, and route parameters. It helps prevent invalid data from entering your application and provides clear error messages for validation failures.
+
+41. **zod** (^3.24.1): 
+   - Zod is a TypeScript-first schema validation library that provides runtime type checking and validation. It allows you to define schemas that validate data at runtime while providing full TypeScript type inference. Zod is particularly powerful for validating API request/response data, environment variables, and configuration objects. It offers excellent developer experience with clear error messages and type safety.
+
+42. **express-mongo-sanitize** (^2.2.0): 
+   - Express-mongo-sanitize is a middleware that sanitizes user-supplied data to prevent MongoDB operator injection attacks. It removes or replaces any keys in objects that begin with a "$" sign or contain a ".", which are MongoDB operators that could be used maliciously. This middleware is crucial for preventing NoSQL injection attacks, which can be as dangerous as SQL injection attacks. It sanitizes request body, query parameters, and route parameters automatically.
